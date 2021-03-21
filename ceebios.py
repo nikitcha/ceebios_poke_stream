@@ -1,6 +1,5 @@
 import streamlit
 import pandas
-import os
 import numpy
 import requests
 import urllib
@@ -62,7 +61,7 @@ def search_google(search_query, cnt = 30):
             break
     return pandas.DataFrame(pubs)
 
-@streamlit.cache()
+@streamlit.cache
 def search_core(query, page,lang, cnt = 30):
     params = {"page": page, "pageSize": cnt, "apiKey": API_KEY, "language.name":lang}
     #core_query = " ".join((urllib.parse.quote(query), "biomimetism"))
@@ -79,7 +78,7 @@ def get_google_queries(name):
     pubs = search_google(query)
     return query, pubs
 
-@streamlit.cache((allow_output_mutation=True))
+@streamlit.cache(allow_output_mutation=True)
 def get_wiki(lang, name):
     wikiext = wiki.WikipediaExtractor(lang=lang)
     return wikiext.search_pages(name, best_match=True)

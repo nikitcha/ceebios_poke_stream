@@ -1,13 +1,10 @@
 import webbrowser
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 
 import bs4 as bs
-import pandas as pd
 import requests
 import wikipedia
 from PIL import Image
-from tqdm import tqdm
 
 
 class WikipediaError(Exception):
