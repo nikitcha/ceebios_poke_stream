@@ -75,7 +75,7 @@ def main():
         streamlit.components.v1.iframe(url, height=800, scrolling=True)
     elif engine=='OneZoom':
         url = "http://www.onezoom.org/"
-        streamlit.components.v1.iframe(url, height=800, scrolling=True)    
+        open_page(url)
     elif engine=='BASE':
         streamlit.write("API: To Do. Need to whitelist IPs")
         url = "https://www.base-search.net/Search/Results?lookfor={}&name=&oaboost=1&newsearch=1&refid=dcbasen".format(name.replace(' ','+'))
