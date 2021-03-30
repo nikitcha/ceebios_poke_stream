@@ -78,7 +78,7 @@ def main():
         open_page(url)
         streamlit.components.v1.iframe(url, height=800, scrolling=True)
     elif engine=='OneZoom':
-        url = "http://www.onezoom.org/AT/@biota=93302?img=best_any&anim=jump#x775,y1113,w1.4450"
+        url = "https://www.onezoom.org/AT/@biota=93302?img=best_any&anim=jump#x775,y1113,w1.4450"
         open_page(url)        
         streamlit.components.v1.iframe(url, height=800, scrolling=True)
     elif engine=='BASE':
