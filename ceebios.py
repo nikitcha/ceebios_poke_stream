@@ -53,15 +53,13 @@ def main():
         else:
             streamlit.write('No Wikipedia page found')
 
-
     engine = streamlit.radio("Search Engine",('GBIF','CORE','CrossRef','Open Knowledge Map','Tree of Life','EOL','OneZoom','BASE','Google Scholar', 'Semantic Scholar', 'Microsoft Academic','Dimensions')) #'World News (GDELT)')
 
     streamlit.subheader('Results')
     if engine=='GBIF':
         api = streamlit.radio("GBIF",('Species','Maps'))
         data = loaders.get_gbif(api, name)
-        if api == 'Species':
-            streamlit.write(data)
+        streamlit.write(data)
         if api=='Maps':
             streamlit.map(data)
     elif engine=='CrossRef':
@@ -75,7 +73,8 @@ def main():
         streamlit.components.v1.iframe(url, height=800, scrolling=True)
     elif engine=='OneZoom':
         url = "http://www.onezoom.org/"
-        open_page(url)
+        open_page(url)        
+        streamlit.components.v1.iframe("http://www.onezoom.org/AT/@biota=93302?img=best_any&anim=jump#x775,y1113,w1.4450", height=800, scrolling=True)
     elif engine=='BASE':
         streamlit.write("API: To Do. Need to whitelist IPs")
         url = "https://www.base-search.net/Search/Results?lookfor={}&name=&oaboost=1&newsearch=1&refid=dcbasen".format(name.replace(' ','+'))
