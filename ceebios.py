@@ -59,9 +59,12 @@ def main():
     if engine=='GBIF':
         api = streamlit.radio("GBIF",('Species','Maps'))
         data = loaders.get_gbif(api, name)
-        streamlit.write(data)
-        if api=='Maps':
+        if api=='Species':
+            streamlit.write(data)
+        elif api=='Maps':
             streamlit.map(data)
+        else:
+            streamlit.write(data)
     elif engine=='CrossRef':
         url = "https://search.crossref.org/?q={}&from_ui=yes".format(name.replace(' ','+'))
         streamlit.write('API: To Do')
