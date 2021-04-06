@@ -2,70 +2,100 @@ import streamlit
 import loaders
 import urllib
 import userdata as db
-
 streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
+
+app_state = streamlit.experimental_get_query_params() 
+def rerun():
+    raise streamlit.script_runner.RerunException(streamlit.script_request_queue.RerunData(None))
+
 def open_page(url):    
     link = '[Open in Browser]({})'.format(url)
     streamlit.write(link)
 
-def main():
-    username = streamlit.sidebar.text_input(label='User Name', value='anonymous')
+conn = db.get_connection()
+db.init_db(conn)
 
-    conn = db.get_connection()
-    db.init_db(conn)
+username = streamlit.sidebar.text_input(label='User Name', value='anonymous')
+with streamlit.sidebar.beta_expander('See my search history'):
+    if username=='admin':
+        history = db.get_alldata(conn)
+    else:
+        history = db.get_userdata(conn,username)
+    streamlit.write(history)
 
-    streamlit.image('https://ceebios.com/wp-content/uploads/2017/06/ceebios-logo-06-167x92.png')
-    streamlit.subheader('Open source project to help bio-mimicry research for Data Scientists and Engineers.')
 
-    streamlit.subheader('Search')
+streamlit.image('https://ceebios.com/wp-content/uploads/2017/06/ceebios-logo-06-167x92.png')
+streamlit.subheader('Open source project to help bio-mimicry research for Data Scientists and Engineers.')
+
+c1,c2 = streamlit.beta_columns((1,1))
+with c1:
+    streamlit.subheader('Search')   
     common = streamlit.text_input(label='Filter Species by Common Name',value='')
     entity = loaders.get_cannonical_name(common)
     canonical = streamlit.text_input(label='Filter Species by Canonical Name',value=entity)
     species_list = loaders.get_species(canonical)
+    #species_list = loaders.auto_suggest(canonical)
     name = streamlit.multiselect(label='Select Species', options=species_list)
+    if len(name)>0:
+        if len(name)>1:
+            streamlit.write('More than one species selected. Considreing only '+name[0])
+        name = name[0]
+        streamlit.write(name)
+        data = loaders.get_gbif('Species', name)
 
-    with streamlit.beta_expander('See my search history'):
-        if username=='admin':
-            history = db.get_alldata(conn)
-        else:
-            history = db.get_userdata(conn,username)
-        streamlit.write(history)
-
-    if len(name)>1:
-        streamlit.text('More than one species is selected!')
+        streamlit.write(data)
+        if (name not in app_state) or (name!=app_state['name'][0]) or ('search' not in app_state):
+            streamlit.experimental_set_query_params(search=name, level='species', name=name)
+    else:
+        streamlit.experimental_set_query_params(search='', level='', name='')
         streamlit.stop()
-    if len(name)==0 or not name[0]:
-        streamlit.text('No species is selected!')
-        streamlit.stop()
-    name = name[0]
-    streamlit.write('Selected: '+name)
+with c2:
+    streamlit.subheader('Browse')   
+    app_state = streamlit.experimental_get_query_params() 
+    _search = app_state['search'][0] 
+    _level = app_state['level'][0]
+    backbone, backbone_order = loaders.get_backbone(_search)
 
-    db.add_userdata(conn, username, name)
+    level_int = [i for i,o in enumerate(backbone_order) if o==_level]
+    level = streamlit.selectbox(label='Level', options=backbone_order,index=0 if len(level_int)==0 else level_int[0])
 
-    with streamlit.beta_expander(label='Wikipedia'):
-        lang = 'en' #streamlit.radio("Wikipedia Language",('en','fr'))
-        page, image = loaders.get_wiki(name, lang)
-        if image:
-            streamlit.image(image)
-        if page:            
-            streamlit.markdown(page.summary)
-            open_page(page.url)
-        else:
-            streamlit.write('No Wikipedia page found')
+    subnames, level_down = loaders.get_subnames(backbone, level)
+    streamlit.experimental_set_query_params(search=_search, level=level, name=name)
+    search = streamlit.multiselect(label='Level Down',options=subnames)
+    if search:
+        streamlit.experimental_set_query_params(search=search[0], level=level_down, name=name)
+    if streamlit.button('Plot Tree'):
+        app_state = streamlit.experimental_get_query_params() 
+        loaders.get_graph(backbone_order, backbone, app_state['level'][0], subnames)
+        HtmlFile = open("example.html", 'r', encoding='utf-8')
+        source_code = HtmlFile.read() 
+        streamlit.components.v1.html(source_code, height = 550,width=1600)
 
-    engine = streamlit.radio("Search Engine",('GBIF','CORE','CrossRef','Open Knowledge Map','Tree of Life','EOL','OneZoom','BASE','Google Scholar', 'Semantic Scholar', 'Microsoft Academic','Dimensions')) #'World News (GDELT)')
+
+streamlit.write('Selected: '+name)
+
+db.add_userdata(conn, username, name)
+
+if streamlit.checkbox('Maps'):
+    data = loaders.get_gbif('Maps', name)
+    streamlit.map(data)   
+
+if streamlit.checkbox(label='Wikipedia'):
+    lang = 'en' #streamlit.radio("Wikipedia Language",('en','fr'))
+    page, image = loaders.get_wiki(name, lang)
+    if image:
+        streamlit.image(image)
+    if page:            
+        streamlit.markdown(page.summary)
+        open_page(page.url)
+    else:
+        streamlit.write('No Wikipedia page found')
+
+with streamlit.beta_expander(label='Academic Portal'):
+    engine = streamlit.radio("Search Engine",('CrossRef','CORE','Open Knowledge Map','Tree of Life','EOL','OneZoom','BASE','Google Scholar', 'Semantic Scholar', 'Microsoft Academic','Dimensions')) #'World News (GDELT)')
 
     streamlit.subheader('Results')
-    if engine=='GBIF':
-        api = streamlit.radio("GBIF",('Species','Maps'))
-        data = loaders.get_gbif(api, name)
-        if api=='Species':
-            streamlit.write(data)
-        elif api=='Maps':
-            streamlit.map(data)
-        else:
-            streamlit.write(data)
-    elif engine=='CrossRef':
+    if engine=='CrossRef':
         url = "https://search.crossref.org/?q={}&from_ui=yes".format(name.replace(' ','+'))
         streamlit.write('API: To Do')
         open_page(url)
@@ -122,5 +152,3 @@ def main():
         url = "https://www.semanticscholar.org/search?q={}&sort=relevance".format(val)
         open_page(url)
 
-if __name__=='__main__':
-    main()

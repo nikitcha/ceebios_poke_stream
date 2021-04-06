@@ -7,9 +7,10 @@ import urllib
 #from scholarly import scholarly
 from wikidata.client import Client
 import gdelt_api
-from pygbif import species, occurrences
+from pygbif import species, occurrences, maps
 import weakref
 import crossref
+from pyvis import network as net
 
 client = Client() 
 sci_name = client.get('P225')
@@ -20,7 +21,7 @@ API_KEY = "cJmoVEila3gB0zCIM2q1vpZnsKjr9XdG"
 
 MIC_KEY = "c12b79e8d175478db89dea3d70dd2e56" #"7edb2076d56b40eba66f8d5f23e0385a"
 MIC_API = "https://api.labs.cognitive.microsoft.com/academic/v1.0/interpret?query="
-
+order = {'species':0,'genus':1,'family':2,'order':3,'phylum':4,'kingdom':5}
 
 def deep_get(_dict, prop, default=None):
     if prop in _dict:
@@ -42,6 +43,12 @@ def get_cannonical_name(search):
         return entity[sci_name]
     else:
         return ''
+
+@streamlit.cache
+def auto_suggest(search):
+    r = requests.get(f"https://api.gbif.org/v1/species/suggest?q={search}")
+    results = r.json()
+    return [r['canonicalName'] for r in results]
 
 @streamlit.cache
 def get_species(search):
@@ -107,17 +114,52 @@ def get_microsoft(query, page, cnt=10):
 #    pubs = search_google(query)
 #    return query, pubs
 
+@streamlit.cache
+def get_backbone(search):
+    backbone = species.name_backbone(name=search, kingdom='animals')
+    backbone_levels = [o for o in order.keys() if o in backbone]
+    return backbone, backbone_levels
+
+@streamlit.cache
+def get_subnames(backbone, level):
+    try:
+        subspecies = species.name_usage(key=backbone[level+'Key'], data='children', limit=1000)['results']
+        subnames = [s['canonicalName'] for s in subspecies if 'canonicalName' in s]
+        if level=='species':
+            level_down = level
+        else:
+            level_int = order[level]
+            level_down = [o for i,o in enumerate(order.keys()) if (o in subspecies[0]) and (i<level_int)][-1]
+    except:
+        subnames = []
+        level_down = level
+    return subnames, level_down
+
+@streamlit.cache
+def get_graph(backbone_order, backbone, level, subnames):
+    g=net.Network(height='500px', width='50%',heading='')
+    level_int = [i for i,o in enumerate(backbone_order) if o==level][0]
+    thisorder = backbone_order[level_int:]
+    for o in thisorder:
+        g.add_node(backbone[o])
+
+    for i,o in enumerate(thisorder[:-1]):
+        g.add_edge(backbone[o],backbone[thisorder[i+1]])
+
+    for sub in subnames:
+        g.add_node(sub)
+        g.add_edge(backbone[thisorder[0]],sub)
+    g.write_html('example.html')
+
 
 @streamlit.cache
 def get_gbif(api, name):
-    url = "https://api.gbif.org/v1/species/suggest?q="+urllib.parse.quote(name)
-    data = requests.get(url)
-    info = data.json()[0]
+    info = species.name_suggest(q=name)[0]
     if api=='Species':
         fields = ['kingdom','phylum','order','family', 'genus', 'species', 'scientificName','canonicalName']
         return {k:info.get(k) for k in fields}
     if api=='Maps':
-        ans = occurrences.search(scientificName=info['scientificName'], hasCoordinate=True)
+        ans = occurrences.search(taxonKey=info['speciesKey'], hasCoordinate=True, limit=300)
         if ans['count']>0:
             coords = [(float(res['decimalLongitude']), float(res['decimalLatitude'])) for res in ans['results']]
             coords = pandas.DataFrame(numpy.stack(coords))
@@ -125,6 +167,8 @@ def get_gbif(api, name):
             return coords
         else:
             return pandas.DataFrame()    
+        #ans = maps.map(taxonKey=info['speciesKey'])
+        #return ans.path
 
 
 
