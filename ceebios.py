@@ -47,7 +47,7 @@ with c1:
         if (name not in app_state) or (name!=app_state['name'][0]) or ('search' not in app_state):
             streamlit.experimental_set_query_params(search=name, level='species', name=name)
     else:
-        streamlit.experimental_set_query_params(search='', level='', name='')
+        #streamlit.experimental_set_query_params(search='', level='', name='')
         streamlit.stop()
 with c2:
     streamlit.subheader('Browse')   
@@ -60,7 +60,7 @@ with c2:
     level = streamlit.selectbox(label='Level', options=backbone_order,index=0 if len(level_int)==0 else level_int[0])
 
     subnames, level_down = loaders.get_subnames(backbone, level)
-    streamlit.experimental_set_query_params(search=_search, level=level, name=name)
+    #streamlit.experimental_set_query_params(search=_search, level=level, name=name)
     search = streamlit.multiselect(label='Level Down',options=subnames)
     #if search:
     #    streamlit.experimental_set_query_params(search=search[0], level=level_down, name=name)
