@@ -60,16 +60,16 @@ with c2:
     level = streamlit.selectbox(label='Level', options=backbone_order,index=0 if len(level_int)==0 else level_int[0])
 
     subnames, level_down = loaders.get_subnames(backbone, level)
-    #streamlit.experimental_set_query_params(search=_search, level=level, name=name)
+    streamlit.experimental_set_query_params(search=_search, level=level, name=name)
     search = streamlit.multiselect(label='Level Down',options=subnames)
     #if search:
     #    streamlit.experimental_set_query_params(search=search[0], level=level_down, name=name)
-    if streamlit.button('Plot Tree'):
-        app_state = streamlit.experimental_get_query_params() 
-        loaders.get_graph(backbone_order, backbone, app_state['level'][0], subnames)
-        HtmlFile = open("example.html", 'r', encoding='utf-8')
-        source_code = HtmlFile.read() 
-        streamlit.components.v1.html(source_code, height = 550,width=1600)
+    #if streamlit.button('Plot Tree'):
+    #    app_state = streamlit.experimental_get_query_params() 
+    #    loaders.get_graph(backbone_order, backbone, app_state['level'][0], subnames)
+    #    HtmlFile = open("example.html", 'r', encoding='utf-8')
+    #    source_code = HtmlFile.read() 
+    #    streamlit.components.v1.html(source_code, height = 550,width=1600)
 
 
 streamlit.write('Selected: '+name)
