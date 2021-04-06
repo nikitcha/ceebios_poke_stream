@@ -62,8 +62,8 @@ with c2:
     subnames, level_down = loaders.get_subnames(backbone, level)
     #streamlit.experimental_set_query_params(search=_search, level=level, name=name)
     search = streamlit.multiselect(label='Level Down',options=subnames)
-    if search:
-        streamlit.experimental_set_query_params(search=search[0], level=level_down, name=name)
+    #if search:
+    #    streamlit.experimental_set_query_params(search=search[0], level=level_down, name=name)
     if streamlit.button('Plot Tree'):
         app_state = streamlit.experimental_get_query_params() 
         loaders.get_graph(backbone_order, backbone, app_state['level'][0], subnames)
