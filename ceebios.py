@@ -56,7 +56,6 @@ with c1:
 with c2:
     streamlit.subheader('Browse')   
     app_state = db.get_searchdata(conn,session_id)
-    streamlit.write(app_state)
     _search = app_state['search']
     _level = app_state['level']
     backbone, backbone_order = loaders.get_backbone(_search)
@@ -74,8 +73,6 @@ with c2:
         subnames, _ = loaders.get_subnames(backbone, level)
         
     app_state = db.get_searchdata(conn, session_id)
-    streamlit.write(app_state)
-
     loaders.get_graph(backbone_order, backbone, app_state['level'] , subnames)
     HtmlFile = open("example.html", 'r', encoding='utf-8')
     source_code = HtmlFile.read() 
