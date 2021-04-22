@@ -2,11 +2,10 @@ import streamlit
 import loaders
 import urllib
 import userdata as db
-streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
+import streamlit.report_thread as ReportThread
+session_id = ReportThread.get_report_ctx().session_id
 
-app_state = streamlit.experimental_get_query_params() 
-def rerun():
-    raise streamlit.script_runner.RerunException(streamlit.script_request_queue.RerunData(None))
+streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
 
 def open_page(url):    
     link = '[Open in Browser]({})'.format(url)
@@ -14,6 +13,10 @@ def open_page(url):
 
 conn = db.get_connection()
 db.init_db(conn)
+try:
+    db.init_session(conn, session_id)
+except:
+    print('Current session')
 
 username = streamlit.sidebar.text_input(label='User Name', value='anonymous')
 with streamlit.sidebar.beta_expander('See my search history'):
@@ -44,32 +47,39 @@ with c1:
         data = loaders.get_gbif('Species', name)
 
         streamlit.write(data)
-        if (name not in app_state) or (name!=app_state['name'][0]) or ('search' not in app_state):
-            streamlit.experimental_set_query_params(search=name, level='species', name=name)
+        app_state = db.get_searchdata(conn,session_id)
+        if len(app_state['name'])==0:
+            db.update_search_data(conn, session_id, {'name':name,'level':'species','search':name})
     else:
-        #streamlit.experimental_set_query_params(search='', level='', name='')
+        db.update_search_data(conn, session_id, {'name':'','level':'','search':''})
         streamlit.stop()
 with c2:
     streamlit.subheader('Browse')   
-    app_state = streamlit.experimental_get_query_params() 
-    _search = app_state['search'][0] 
-    _level = app_state['level'][0]
+    app_state = db.get_searchdata(conn,session_id)
+    streamlit.write(app_state)
+    _search = app_state['search']
+    _level = app_state['level']
     backbone, backbone_order = loaders.get_backbone(_search)
 
     level_int = [i for i,o in enumerate(backbone_order) if o==_level]
-    level = streamlit.selectbox(label='Level', options=backbone_order,index=0 if len(level_int)==0 else level_int[0])
-
+    A = streamlit.empty()
+    level = A.selectbox('Level', options=backbone_order, index=0 if len(level_int)==0 else level_int[0], key=0)
+    db.update_search_data(conn,session_id,{'level':level})
     subnames, level_down = loaders.get_subnames(backbone, level)
-    #streamlit.experimental_set_query_params(search=_search, level=level, name=name)
     search = streamlit.multiselect(label='Level Down',options=subnames)
-    #if search:
-    #    streamlit.experimental_set_query_params(search=search[0], level=level_down, name=name)
-    #if streamlit.button('Plot Tree'):
-    #    app_state = streamlit.experimental_get_query_params() 
-    #    loaders.get_graph(backbone_order, backbone, app_state['level'][0], subnames)
-    #    HtmlFile = open("example.html", 'r', encoding='utf-8')
-    #    source_code = HtmlFile.read() 
-    #    streamlit.components.v1.html(source_code, height = 550,width=1600)
+    if search:
+        db.update_search_data(conn,session_id,{'search':search[0], 'level':level_down})
+        level_int = [i for i,o in enumerate(backbone_order) if o==level_down]
+        level = A.selectbox('Level', options=backbone_order, index=0 if len(level_int)==0 else level_int[0], key=1) 
+        subnames, _ = loaders.get_subnames(backbone, level)
+        
+    app_state = db.get_searchdata(conn, session_id)
+    streamlit.write(app_state)
+
+    loaders.get_graph(backbone_order, backbone, app_state['level'] , subnames)
+    HtmlFile = open("example.html", 'r', encoding='utf-8')
+    source_code = HtmlFile.read() 
+    streamlit.components.v1.html(source_code, height = 550,width=1600)
 
 
 streamlit.write('Selected: '+name)
