@@ -192,23 +192,24 @@ def get_gdelt(name):
 #@streamlit.cache
 def get_graph_app(result, parent, children):
     g=net.Network(height='500px', width='50%',heading='')
-    res = parent.iloc[0]
-    for i,rank in enumerate(app_order):
-        if rank==res['taxonRank'] or rank=='species':
-            node = res['taxonRank']+':'+res['canonicalName']
-        else:
-            node = rank+':'+res[rank] if res[rank] else 'None'
-        g.add_node(node, color=palette[rank])
-        if i>0:
-            prev = res[app_order[i-1]] if res[app_order[i-1]] else 'None'
-            prev = app_order[i-1]+':'+prev
-            g.add_edge(prev, node)
-        if rank==res['taxonRank'] or rank=='species':
-            break
-    
     rnode =  result.iloc[0]['taxonRank']+':'+result.iloc[0]['canonicalName']
     g.add_node(rnode)
-    g.add_edge(rnode, node)
+
+    if parent.shape[0]>0:
+        res = parent.iloc[0]
+        for i,rank in enumerate(app_order):
+            if rank==res['taxonRank'] or rank=='species':
+                node = res['taxonRank']+':'+res['canonicalName']
+            else:
+                node = rank+':'+res[rank] if res[rank] else 'None'
+            g.add_node(node, color=palette[rank])
+            if i>0:
+                prev = res[app_order[i-1]] if res[app_order[i-1]] else 'None'
+                prev = app_order[i-1]+':'+prev
+                g.add_edge(prev, node)
+            if rank==res['taxonRank'] or rank=='species':
+                break
+        g.add_edge(rnode, node)
 
     for i in range(children.shape[0]):
         cnode = children.iloc[i]['taxonRank']+':'+children.iloc[i]['canonicalName']
