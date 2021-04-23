@@ -85,12 +85,11 @@ if streamlit.checkbox(label='Wikipedia'):
         streamlit.write('No Wikipedia page found')
 
 with streamlit.beta_expander(label='Academic Portal'):
-    engine = streamlit.radio("Search Engine",('CrossRef','CORE','Open Knowledge Map','Tree of Life','EOL','OneZoom','BASE','Google Scholar', 'Semantic Scholar', 'Microsoft Academic','Dimensions')) #'World News (GDELT)')
+    engine = streamlit.radio("Search Engine",('Microsoft Academic', 'Semantic Scholar','Google Scholar', 'CORE','BASE','Dimensions','CrossRef','Open Knowledge Map','Tree of Life','EOL','OneZoom')) #'World News (GDELT)')
 
     streamlit.subheader('Results')
     if engine=='CrossRef':
         url = "https://search.crossref.org/?q={}&from_ui=yes".format(name.replace(' ','+'))
-        streamlit.write('API: To Do')
         open_page(url)
     elif engine=='Tree of Life':
         url = "https://tree.opentreeoflife.org/"
@@ -105,12 +104,10 @@ with streamlit.beta_expander(label='Academic Portal'):
         open_page(url)        
         streamlit.components.v1.iframe(url, height=800, scrolling=True)
     elif engine=='BASE':
-        streamlit.write("API: To Do. Need to whitelist IPs")
         url = "https://www.base-search.net/Search/Results?lookfor={}&name=&oaboost=1&newsearch=1&refid=dcbasen".format(name.replace(' ','+'))
         open_page(url)
     elif engine == 'Microsoft Academic':
         #pubs = loaders.get_microsoft(name,1)
-        streamlit.write('API: To Do')
         url = 'https://academic.microsoft.com/search?q={}&f=&orderBy=0&skip=0&take=10'.format(urllib.parse.quote(name))
         open_page(url)
     elif engine == 'Dimensions':
