@@ -111,7 +111,6 @@ with streamlit.beta_expander(label='Academic Portal'):
         url = 'https://academic.microsoft.com/search?q={}&f=&orderBy=0&skip=0&take=10'.format(urllib.parse.quote(name))
         open_page(url)
     elif engine == 'Dimensions':
-        streamlit.write('API: Maybe - not free.')
         url = "https://app.dimensions.ai/discover/publication?search_mode=content&search_text={}&search_type=kws&search_field=full_search".format(urllib.parse.quote(name))
         open_page(url)
     elif engine == 'Open Knowledge Map':
@@ -137,7 +136,6 @@ with streamlit.beta_expander(label='Academic Portal'):
         articles = loaders.get_gdelt(name)
         streamlit.write(articles)
     elif engine=='Semantic Scholar':
-        streamlit.text('Open Semantic Scholar in seperate tab.')
         val = name.replace(' ','%20')
         url = "https://www.semanticscholar.org/search?q={}&sort=relevance".format(val)
         open_page(url)
