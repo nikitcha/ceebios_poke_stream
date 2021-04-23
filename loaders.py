@@ -192,27 +192,31 @@ def get_gdelt(name):
 @streamlit.cache
 def get_graph_app(result, parent, children):
     g=net.Network(height='500px', width='50%',heading='')
-    res = result.iloc[0]
+    res = parent.iloc[0]
     for i,rank in enumerate(app_order):
-        if rank==res['taxonRank']:   
-            node = res['canonicalName']
+        if rank==res['taxonRank'] or rank=='species':
+            node = res['taxonRank']+':'+res['canonicalName']
         else:
-            node = res[rank] if res[rank] else 'None'
-        node = rank+':'+node
+            node = rank+':'+res[rank] if res[rank] else 'None'
         g.add_node(node, color=palette[rank])
         if i>0:
             prev = res[app_order[i-1]] if res[app_order[i-1]] else 'None'
             prev = app_order[i-1]+':'+prev
             g.add_edge(prev, node)
-        if rank==res['taxonRank']:
+        if rank==res['taxonRank'] or rank=='species':
             break
-    node =  result.iloc[0]['taxonRank']+':'+result.iloc[0]['canonicalName']
+    
+    rnode =  result.iloc[0]['taxonRank']+':'+result.iloc[0]['canonicalName']
+    g.add_node(rnode)
+    g.add_edge(rnode, node)
+
     for i in range(children.shape[0]):
+        cnode = children.iloc[i]['taxonRank']+':'+children.iloc[i]['canonicalName']
         if children.iloc[i]['taxonRank'] in palette:
-            g.add_node(children.iloc[i]['canonicalName'], color=palette[children.iloc[i]['taxonRank']])
+            g.add_node(cnode, color=palette[children.iloc[i]['taxonRank']])
         else:
-            g.add_node(children.iloc[i]['canonicalName'], color=palette['else'])
-        g.add_edge(children.iloc[i]['canonicalName'], node)
+            g.add_node(cnode, color=palette['else'])
+        g.add_edge(cnode, rnode)
     g.write_html('test.html')
 
 
