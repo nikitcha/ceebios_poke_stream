@@ -116,7 +116,6 @@ with streamlit.beta_expander(label='Academic Portal'):
     elif engine == 'Open Knowledge Map':
         streamlit.components.v1.iframe("https://openknowledgemaps.org/", height=800, scrolling=True)
     elif engine=='Google Scholar':
-        streamlit.text('Open Google Scholar in a separate tab.')
         val = name.replace(' ','+')
         url = "https://scholar.google.com/scholar?as_vis=0&q={}&hl=en&as_sdt=0,5".format(val)
         open_page(url)
