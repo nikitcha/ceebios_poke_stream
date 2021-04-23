@@ -192,28 +192,27 @@ def get_gdelt(name):
 @streamlit.cache
 def get_graph_app(result, parent, children):
     g=net.Network(height='500px', width='50%',heading='')
-    if result.iloc[0]['taxonRank'] in palette:
-        g.add_node(result.iloc[0]['canonicalName'], color=palette[result.iloc[0]['taxonRank']])
-    else:
-        g.add_node(result.iloc[0]['canonicalName'], color=palette['else'])
-    if parent.shape[0]>0:
-        g.add_node(parent.iloc[0]['canonicalName'], color=palette[parent.iloc[0]['taxonRank']])   
-        g.add_edge(parent.iloc[0]['canonicalName'], result.iloc[0]['canonicalName'])
-        for i,rank in enumerate(app_order):
-            if rank==parent.iloc[0]['taxonRank']:
-                if i>0:
-                    g.add_edge(parent.iloc[0][app_order[i-1]], parent.iloc[0]['canonicalName'])
-                break
-            g.add_node(parent.iloc[0][rank], color=palette[rank])
-            if i>0:
-                g.add_edge(parent.iloc[0][rank], parent.iloc[0][app_order[i-1]])
-        
+    res = result.iloc[0]
+    for i,rank in enumerate(app_order):
+        if rank==res['taxonRank']:   
+            node = res['canonicalName']
+        else:
+            node = res[rank] if res[rank] else 'None'
+        node = rank+':'+node
+        g.add_node(node, color=palette[rank])
+        if i>0:
+            prev = res[app_order[i-1]] if res[app_order[i-1]] else 'None'
+            prev = app_order[i-1]+':'+prev
+            g.add_edge(prev, node)
+        if rank==res['taxonRank']:
+            break
+    node =  result.iloc[0]['taxonRank']+':'+result.iloc[0]['canonicalName']
     for i in range(children.shape[0]):
         if children.iloc[i]['taxonRank'] in palette:
             g.add_node(children.iloc[i]['canonicalName'], color=palette[children.iloc[i]['taxonRank']])
         else:
             g.add_node(children.iloc[i]['canonicalName'], color=palette['else'])
-        g.add_edge(children.iloc[i]['canonicalName'], result.iloc[0]['canonicalName'])
+        g.add_edge(children.iloc[i]['canonicalName'], node)
     g.write_html('test.html')
 
 
