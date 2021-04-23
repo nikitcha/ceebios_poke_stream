@@ -9,8 +9,10 @@ from wikidata.client import Client
 import gdelt_api
 from pygbif import species, occurrences, maps
 import weakref
-import crossref
 from pyvis import network as net
+import sqlite3
+from matplotlib import cm
+import matplotlib
 
 client = Client() 
 sci_name = client.get('P225')
@@ -22,6 +24,11 @@ API_KEY = "cJmoVEila3gB0zCIM2q1vpZnsKjr9XdG"
 MIC_KEY = "c12b79e8d175478db89dea3d70dd2e56" #"7edb2076d56b40eba66f8d5f23e0385a"
 MIC_API = "https://api.labs.cognitive.microsoft.com/academic/v1.0/interpret?query="
 order = {'species':0,'genus':1,'family':2,'order':3,'phylum':4,'kingdom':5}
+
+cmap = cm.get_cmap('Pastel1', 8)  
+app_order = ['kingdom','phylum','class','order','family','genus','species', 'else']
+palette = {o:matplotlib.colors.rgb2hex(cmap(i)) for i,o in enumerate(app_order)}
+
 
 def deep_get(_dict, prop, default=None):
     if prop in _dict:
@@ -167,9 +174,6 @@ def get_gbif(api, name):
             return coords
         else:
             return pandas.DataFrame()    
-        #ans = maps.map(taxonKey=info['speciesKey'])
-        #return ans.path
-
 
 
 @streamlit.cache()
@@ -183,3 +187,78 @@ def get_gdelt(name):
     else: 
         out = []
     return pandas.DataFrame(out)            
+
+
+@streamlit.cache
+def get_graph_app(result, parent, children):
+    g=net.Network(height='500px', width='50%',heading='')
+    if result.iloc[0]['taxonRank'] in palette:
+        g.add_node(result.iloc[0]['canonicalName'], color=palette[result.iloc[0]['taxonRank']])
+    else:
+        g.add_node(result.iloc[0]['canonicalName'], color=palette['else'])
+    if parent.shape[0]>0:
+        g.add_node(parent.iloc[0]['canonicalName'], color=palette[parent.iloc[0]['taxonRank']])   
+        g.add_edge(parent.iloc[0]['canonicalName'], result.iloc[0]['canonicalName'])
+        for i,rank in enumerate(app_order):
+            if rank==parent.iloc[0]['taxonRank']:
+                if i>0:
+                    g.add_edge(parent.iloc[0][app_order[i-1]], parent.iloc[0]['canonicalName'])
+                break
+            g.add_node(parent.iloc[0][rank], color=palette[rank])
+            if i>0:
+                g.add_edge(parent.iloc[0][rank], parent.iloc[0][app_order[i-1]])
+        
+    for i in range(children.shape[0]):
+        if children.iloc[i]['taxonRank'] in palette:
+            g.add_node(children.iloc[i]['canonicalName'], color=palette[children.iloc[i]['taxonRank']])
+        else:
+            g.add_node(children.iloc[i]['canonicalName'], color=palette['else'])
+        g.add_edge(children.iloc[i]['canonicalName'], result.iloc[0]['canonicalName'])
+    g.write_html('test.html')
+
+
+@streamlit.cache(hash_funcs={sqlite3.Connection: id})
+def suggest(query, lang, conn):
+    df1 = pandas.read_sql(f"select taxonID,vernacularName from vernacular where language='{lang}' and vernacularName like '%{query}%' limit 1000", con=conn)
+    sql = "select taxonID, canonicalName, taxonRank, kingdom, phylum, [class], [order], family, genus from taxon where taxonID in ("
+    sql += ",".join([str(v) for v in df1['taxonID'].values])+")"
+    df2 = pandas.read_sql(sql, con=conn)
+    return df1.set_index('taxonID').join(df2.set_index('taxonID'), how='inner').reset_index()
+
+@streamlit.cache(hash_funcs={sqlite3.Connection: id})
+def search(query, conn):
+    return pandas.read_sql(f"select taxonID, scientificName, canonicalName, genericName, taxonRank, kingdom, phylum, [class], [order], family, genus from taxon where canonicalName like '%{query}%' limit 1000", con=conn)
+
+@streamlit.cache(hash_funcs={sqlite3.Connection: id})
+def browse(query,conn):
+    result = pandas.read_sql(f"select taxonID, parentNameUsageID, scientificName, canonicalName, genericName, taxonRank, kingdom, phylum, [class], [order], family, genus from taxon where taxonID={query} limit 1", con=conn)
+    sql = f"""select taxonID, parentNameUsageID, scientificName, canonicalName, genericName, taxonRank, kingdom, phylum, [class], [order], family, genus 
+                from taxon where parentNameUsageID={query} and canonicalName is not NULL limit 10000"""
+    children = pandas.read_sql(sql, con=conn)
+    parent_id = result.iloc[0]['parentNameUsageID']
+    if parent_id is not None:
+        parent = pandas.read_sql(f"select taxonID, parentNameUsageID, scientificName, canonicalName, genericName, taxonRank, kingdom, phylum, [class], [order], family, genus from taxon where taxonID={parent_id} limit 1", con=conn)
+    else:
+        parent = pandas.DataFrame()
+    return result, parent, children
+
+@streamlit.cache(hash_funcs={sqlite3.Connection: id})
+def wrap(query, conn):
+    return pandas.read_sql(query, con=conn)
+
+@streamlit.cache
+def get_images(taxon, limit=4):
+    res = occurrences.search(taxonKey=taxon,mediatype='stillimage',limit=limit)['results']
+    images = [r['media'][0]['identifier'] for r in res]
+    return images
+
+@streamlit.cache
+def get_coords(taxon, limit=100):
+    res = occurrences.search(taxonKey=taxon,hasCoordinate=True,limit=limit)
+    if res['count']>0:
+        coords = [(float(res['decimalLongitude']), float(res['decimalLatitude'])) for res in res['results']]
+        coords = pandas.DataFrame(numpy.stack(coords))
+        coords.columns = ['lon','lat']
+        return coords
+    else:
+        return pandas.DataFrame()    

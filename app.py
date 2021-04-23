@@ -1,96 +1,74 @@
 import streamlit
 import loaders
-import urllib
 import userdata as db
 import streamlit.report_thread as ReportThread
-session_id = ReportThread.get_report_ctx().session_id
-
 streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
+session_id = ReportThread.get_report_ctx().session_id
 
 def open_page(url):    
     link = '[Open in Browser]({})'.format(url)
     streamlit.write(link)
 
-conn = db.get_connection()
-conngbif = db.get_connection('gbif.db')
-
-db.init_db(conn)
-try:
-    db.init_session(conn, session_id)
-except:
-    print('Current session')
-
+connuser = db.get_connection()
+conn = db.get_connection('gbif.db')
+db.init_db(connuser)
 username = streamlit.sidebar.text_input(label='User Name', value='anonymous')
 with streamlit.sidebar.beta_expander('See my search history'):
     if username=='admin':
-        history = db.get_alldata(conn)
+        history = db.get_alldata(connuser)
     else:
-        history = db.get_userdata(conn,username)
+        history = db.get_userdata(connuser,username)
     streamlit.write(history)
 
 
 streamlit.image('https://ceebios.com/wp-content/uploads/2017/06/ceebios-logo-06-167x92.png')
 streamlit.subheader('Open source project to help bio-mimicry research for Data Scientists and Engineers.')
 
+with streamlit.beta_expander('Common Name Search'):
+    lang = streamlit.radio('Language',['en','fr'])
+    query = streamlit.text_input('Name',value="")
+    if query:
+        streamlit.dataframe(loaders.suggest(query, lang, conn))
+
+with streamlit.beta_expander('Canonical Search', expanded=True):
+    query = streamlit.text_input('Keywords',value="")
+    if query:
+        streamlit.dataframe(loaders.search(query, conn))
+
+query = streamlit.text_input('Taxon',value="")
+
 c1,c2 = streamlit.beta_columns((1,1))
 with c1:
-    streamlit.subheader('Search')   
-    common = streamlit.text_input(label='Filter Species by Common Name',value='')
-    entity = loaders.get_cannonical_name(common)
-    canonical = streamlit.text_input(label='Filter Species by Canonical Name',value=entity)
-    species_list = loaders.get_species(canonical)
-    #species_list = loaders.auto_suggest(canonical)
-    name = streamlit.multiselect(label='Select Species', options=species_list)
-    if len(name)>0:
-        if len(name)>1:
-            streamlit.write('More than one species selected. Considreing only '+name[0])
-        name = name[0]
-        streamlit.write(name)
-        data = loaders.get_gbif('Species', name)
-
-        streamlit.write(data)
-        app_state = db.get_searchdata(conn,session_id)
-        if len(app_state['name'])==0:
-            db.update_search_data(conn, session_id, {'name':name,'level':'species','search':name})
-    else:
-        db.update_search_data(conn, session_id, {'name':'','level':'','search':''})
-        streamlit.stop()
+    if query:
+        streamlit.write('Result')
+        result, parent, children = loaders.browse(query, conn)
+        streamlit.dataframe(result)  
+        streamlit.write('Parent')
+        streamlit.dataframe(parent)    
+        streamlit.write('Children')
+        streamlit.dataframe(children)          
 with c2:
-    streamlit.subheader('Browse')   
-    app_state = db.get_searchdata(conn,session_id)
-    _search = app_state['search']
-    _level = app_state['level']
-    backbone, backbone_order = loaders.get_backbone(_search)
+    if query:
+        loaders.get_graph_app(result, parent, children)
+        HtmlFile = open("test.html", 'r', encoding='utf-8')
+        source_code = HtmlFile.read() 
+        streamlit.components.v1.html(source_code, height = 550,width=1600)
 
-    level_int = [i for i,o in enumerate(backbone_order) if o==_level]
-    A = streamlit.empty()
-    B = streamlit.empty()
-    level = A.selectbox('Level', options=backbone_order, index=0 if len(level_int)==0 else level_int[0], key=0)
-    db.update_search_data(conn,session_id,{'level':level})
-    subnames, level_down = loaders.get_subnames(backbone, level)
-    search = B.multiselect(label='Sub-Level',options=subnames, key=0)
-    breakpoint()
-    if search:
-        db.update_search_data(conn,session_id,{'search':search[0], 'level':level_down})
-        level_int = [i for i,o in enumerate(backbone_order) if o==level_down]
-        level = A.selectbox('Level', options=backbone_order, index=0 if len(level_int)==0 else level_int[0], key=1) 
-        subnames, _ = loaders.get_subnames(backbone, level)
-        search = B.multiselect(label='Sub-Level',options=subnames, key=1)
-        backbone, backbone_order = loaders.get_backbone(search)
-        app_state = db.get_searchdata(conn,session_id)
-        
-    loaders.get_graph(backbone_order, backbone, app_state['level'] , subnames)
-    HtmlFile = open("example.html", 'r', encoding='utf-8')
-    source_code = HtmlFile.read() 
-    streamlit.components.v1.html(source_code, height = 550,width=1600)
+if query:
+    name = result.iloc[0]['canonicalName']
+else:
+    streamlit.stop()
 
+cs = streamlit.beta_columns(6)
+for c,im in zip(cs,loaders.get_images(query, 6)):
+    with c:
+        streamlit.image(im, output_format='jpeg')
 
 streamlit.write('Selected: '+name)
-
-db.add_userdata(conn, username, name)
+db.add_userdata(connuser, username, name)
 
 if streamlit.checkbox('Maps'):
-    data = loaders.get_gbif('Maps', name)
+    data = loaders.get_coords(query, 300)
     streamlit.map(data)   
 
 if streamlit.checkbox(label='Wikipedia'):
@@ -165,3 +143,9 @@ with streamlit.beta_expander(label='Academic Portal'):
         url = "https://www.semanticscholar.org/search?q={}&sort=relevance".format(val)
         open_page(url)
 
+
+
+with streamlit.beta_expander('GBIF Taxonomy SQL Wrapper'):
+    query = streamlit.text_input('SQL Query',value="select * from taxon where canonicalName like '%vespa ducalis%' limit 5")
+    if query:
+        streamlit.dataframe(loaders.wrap(query, conn))

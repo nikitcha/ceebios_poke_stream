@@ -3,11 +3,9 @@ import sqlite3
 from sqlite3 import Connection
 import streamlit as st
 
-URI_SQLITE_DB = 'data.db'
 @st.cache(hash_funcs={Connection: id})
-def get_connection():
-    return sqlite3.connect(URI_SQLITE_DB, check_same_thread=False)
-
+def get_connection(dbname='data.db'):
+    return sqlite3.connect(dbname, check_same_thread=False)
 
 def init_db(conn: Connection):
     conn.execute(
