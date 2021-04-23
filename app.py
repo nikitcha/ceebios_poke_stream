@@ -1,5 +1,7 @@
 import streamlit
 import loaders
+import urllib
+
 import userdata as db
 import streamlit.report_thread as ReportThread
 streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
