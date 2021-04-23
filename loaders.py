@@ -189,7 +189,7 @@ def get_gdelt(name):
     return pandas.DataFrame(out)            
 
 
-@streamlit.cache
+#@streamlit.cache
 def get_graph_app(result, parent, children):
     g=net.Network(height='500px', width='50%',heading='')
     res = parent.iloc[0]
