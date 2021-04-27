@@ -30,7 +30,14 @@ with streamlit.beta_expander('Common Name Search'):
     lang = streamlit.radio('Language',['en','fr'])
     query = streamlit.text_input('Name',value="")
     if query:
-        streamlit.dataframe(loaders.suggest(query, lang, conn))
+        # Try local first
+        canonical = loaders.suggest(query, lang, conn)        
+        # Try wikipedia
+        if canonical.shape[0]<1:
+            canonical = loaders.get_cannonical_name(query, lang)
+            streamlit.write('Canonical Name: '+canonical)
+        else:
+            streamlit.dataframe(canonical)
 
 with streamlit.beta_expander('Canonical Search', expanded=True):
     query = streamlit.text_input('Keywords',value="")

@@ -69,7 +69,6 @@ with c2:
     db.update_search_data(conn,session_id,{'level':level})
     subnames, level_down = loaders.get_subnames(backbone, level)
     search = B.multiselect(label='Sub-Level',options=subnames, key=0)
-    breakpoint()
     if search:
         db.update_search_data(conn,session_id,{'search':search[0], 'level':level_down})
         level_int = [i for i,o in enumerate(backbone_order) if o==level_down]

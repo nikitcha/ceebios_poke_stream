@@ -39,10 +39,11 @@ def deep_get(_dict, prop, default=None):
                 return deep_get(_dict.get(key), prop, default)  
 
 @streamlit.cache(hash_funcs={weakref.KeyedRef: hash})
-def get_cannonical_name(search):
+def get_cannonical_name(search, lang='en'):
     if not search:
         return ''
-    page = wikipedia.WikipediaPage(wikipedia.search(search, results=1))
+    wikipedia.set_lang(lang)
+    page = wikipedia.WikipediaPage(wikipedia.search(search, results=1, suggestion=True))
     url = f"https://en.wikipedia.org/w/api.php?action=query&prop=pageprops&titles={page.title}&format=json"
     result = requests.get(url).json()
     entity = client.get(deep_get(result,'wikibase_item'), load=True)  
