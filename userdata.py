@@ -24,14 +24,16 @@ def init_session(conn: Connection, session_id:str):
             (
                 id TEXT,
                 search TEXT,
-                level TEXT,
-                name TEXT,
+                offset INTEGER,
                 UNIQUE(id)
             );"""
 
     )
-    conn.execute(f"INSERT INTO searchdata (id, search, level, name) VALUES ('{session_id}', '', '', '')")
-    conn.commit()
+    try:
+        conn.execute(f"INSERT INTO searchdata (id, search, offset) VALUES ('{session_id}', '', 0)")
+        conn.commit()
+    except:        
+        print('Session')
 
 
 def update_search_data(conn, uid, dic):

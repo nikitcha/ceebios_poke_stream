@@ -6,7 +6,6 @@ import requests
 import urllib
 #from scholarly import scholarly
 from wikidata.client import Client
-import gdelt_api
 from pygbif import species, occurrences, maps
 import weakref
 from pyvis import network as net
@@ -32,11 +31,11 @@ def deep_get(_dict, prop, default=None):
 
 docurl = "http://165.22.121.95/documents/search/"
 def make_url(species):
-    return f"{docurl}{species}"
+    return f"{docurl}{species}&limit=0"
 
 @streamlit.cache()
 def get_documents(search):
-    res = requests.get(make_url("vespa ducalis"))
+    res = requests.get(make_url(search))
     df = pandas.DataFrame(res.json()) #[['title','abstract', 'url','authors','publication_year']]
     return df 
 
@@ -85,14 +84,13 @@ def search_core(query, page,lang, cnt = 10):
 def get_backbone(search=''):
     if search and len(search)>2:
         backbone = species.name_backbone(name=search, kingdom='animals')
-        backbone_levels = [o for o in order.keys() if o in backbone]
-        return backbone, backbone_levels
+        return backbone
     else:
-        return '',''
+        return ''
 
 @streamlit.cache
 def get_backbone_graph(backbone, children):
-    g=net.Network(height='500px', width='50%',heading='')
+    g=net.Network(height='400px', width='100%',heading='')
     last_node, node = '',''
     for o in app_order:
         if o in backbone:
@@ -104,8 +102,9 @@ def get_backbone_graph(backbone, children):
 
     if last_node and len(children)>0:
         for index, row in children.iterrows():
-            if row['rank'] in palette:
-                g.add_node(row['canonicalName'], color=palette[row['rank']])
+            rank = row['rank'].lower()
+            if rank in palette:
+                g.add_node(row['canonicalName'], color=palette[rank])
             else:
                 g.add_node(row['canonicalName'])
             g.add_edge(last_node,row['canonicalName'])        
@@ -138,6 +137,9 @@ def get_coords(taxon, limit=100, istaxon=True):
 @streamlit.cache
 def get_children(backbone, limit=5, offset=0):
     children = species.name_usage(key=backbone['usageKey'], data='children', limit=limit,offset=offset)['results']
-    if children:
-        children = pandas.DataFrame(children)[['canonicalName','rank']].dropna()
+    children = pandas.DataFrame(children)
+    if 'canonicalName' in children.columns:
+        children = children[['canonicalName','rank']].dropna()
+    else:
+        children = []
     return children

@@ -2,6 +2,7 @@ import streamlit
 import loaders
 import urllib
 import os
+import pandas
 import userdata as db
 import streamlit.components.v1 as components
 import streamlit.report_thread as ReportThread
@@ -28,9 +29,9 @@ def open_page(url, label=''):
         link = '[{}]({})'.format(label, url)
     streamlit.write(link)
 
-connuser = db.get_connection()
-conn = db.get_connection('gbif.db')
-db.init_db(connuser)
+conn = db.get_connection()
+db.init_db(conn)
+db.init_session(conn, session_id)
 
 with streamlit.sidebar:
     streamlit.write('Search for Species')
@@ -39,9 +40,9 @@ with streamlit.sidebar:
 with streamlit.sidebar.beta_expander('See my search history'):
     username = streamlit.text_input(label='User Name', value='anonymous')
     if username=='admin':
-        history = db.get_alldata(connuser)
+        history = db.get_alldata(conn)
     else:
-        history = db.get_userdata(connuser,username)
+        history = db.get_userdata(conn,username)
     streamlit.write(history)
 
 
@@ -52,19 +53,17 @@ with streamlit.beta_expander('Common Name Search'):
     lang = streamlit.radio('Language',['en','fr'])
     query = streamlit.text_input('Name',value="")
     if query:
-        # Try local first
-        canonical = loaders.suggest(query, lang, conn)        
-        # Try wikipedia
-        if canonical.shape[0]<1:
-            canonical = loaders.get_cannonical_name(query, lang)
-            streamlit.write('Canonical Name: '+canonical)
-        else:
-            streamlit.dataframe(canonical)
+        canonical = loaders.get_cannonical_name(query, lang)
+        streamlit.write('Canonical Name: '+canonical)
 
-backbone, _ = loaders.get_backbone(react_search)
-if not backbone:
+backbone = loaders.get_backbone(react_search)
+if not backbone or 'usageKey' not in backbone:
     streamlit.stop()
-db.add_userdata(connuser, username, react_search)
+taxon = backbone['usageKey']
+last_search = db.get_searchdata(conn, session_id)
+if last_search['search'] != react_search:   
+    db.add_userdata(conn, username, react_search)
+    db.update_search_data(conn, session_id, {'search':react_search, 'offset':0})
 
 c1, c2 = streamlit.beta_columns((1,1))
 children = []
@@ -72,28 +71,45 @@ with c2:
     nchild = streamlit.slider(label='Number of Children',min_value=0,max_value=20,value=5)
 with c1:
     if streamlit.button('Get Children'):
-        children = loaders.get_children(backbone, limit=nchild, offset=0)
+        last_search = db.get_searchdata(conn, session_id)
+        children = loaders.get_children(backbone, limit=nchild, offset=last_search['offset'])
+        db.update_search_data(conn, session_id, {'offset':last_search['offset']+nchild})
         streamlit.dataframe(children)
 
 loaders.get_backbone_graph(backbone, children)
 HtmlFile = open("example.html", 'r', encoding='utf-8')
 source_code = HtmlFile.read() 
-streamlit.components.v1.html(source_code, height = 400, width = 1600)
-        
+streamlit.components.v1.html(source_code, height = 400)       
 
 with streamlit.beta_expander('Images'):
     cs = streamlit.beta_columns(6)
-    for c,im in zip(cs,loaders.get_images(react_search, 6, False)):
+    for c,im in zip(cs,loaders.get_images(taxon, 6, True)):
         with c:
             streamlit.image(im, output_format='jpeg')
 
-
 with streamlit.beta_expander(label='Articles', expanded=True):
-    streamlit.write(loaders.get_documents(react_search))
+    docs = loaders.get_documents(react_search)
+    for _, row in docs.iterrows():
+        c1,c2,c3 = streamlit.beta_columns((2,4,1))
+        with c1:
+            streamlit.write(row['title'])
+        with c2:
+            streamlit.write(row['abstract'])
+        with c3:
+            streamlit.write(row['publication_year'])
 
-streamlit.stop()
+with streamlit.beta_expander(label='Experimental: Related Species', expanded=False):
+    df = []
+    for row in docs['dict_species']:
+        df.append(pandas.DataFrame(row))
+    df = pandas.concat(df,axis=0)
+    df = df.dropna().drop_duplicates()
+    streamlit.dataframe(df[['canonical_name','rank','gbif_id']])
+
+
+name = react_search
 with streamlit.beta_expander(label='Smart Links'):
-    url = "https://www.gbif.org/species/"+taxon
+    url = "https://www.gbif.org/species/"+str(taxon)
     open_page(url, 'GBIF')
 
     url = "https://search.crossref.org/?q={}&from_ui=yes".format(name.replace(' ','+'))
@@ -117,7 +133,7 @@ with streamlit.beta_expander(label='Smart Links'):
     open_page(url, 'Dimensions')
 
 if streamlit.checkbox('Maps'):
-    data = loaders.get_coords(query, 300)
+    data = loaders.get_coords(taxon, 300)
     streamlit.map(data)   
 
 if streamlit.checkbox(label='Wikipedia'):
@@ -162,8 +178,3 @@ if streamlit.checkbox(label='Other Resources'):
     elif engine=='World News (GDELT)':
         articles = loaders.get_gdelt(name)
         streamlit.write(articles)
-
-with streamlit.beta_expander('GBIF Taxonomy SQL Wrapper'):
-    query = streamlit.text_input('SQL Query',value="select * from taxon where canonicalName like '%vespa ducalis%' limit 5")
-    if query:
-        streamlit.dataframe(loaders.wrap(query, conn))
