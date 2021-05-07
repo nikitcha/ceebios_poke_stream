@@ -30,7 +30,7 @@ def init_session(conn: Connection, session_id:str):
 
     )
     try:
-        conn.execute(f"INSERT INTO searchdata (id, search, offset) VALUES ('{session_id}', '', 0)")
+        conn.execute(f"INSERT or IGNORE INTO searchdata (id, search, offset) VALUES ('{session_id}', '', 0)")
         conn.commit()
     except:        
         print('Session')
@@ -43,8 +43,10 @@ def update_search_data(conn, uid, dic):
 
 def get_searchdata(conn: Connection, uid:str):
     df = pd.read_sql(f"SELECT * FROM searchdata where id='{uid}'", con=conn)
-    return df.iloc[0]
-
+    if df.any()
+        return df.iloc[0]
+    else:
+        return df
 
 def get_alldata(conn: Connection):
     df = pd.read_sql("SELECT * FROM userdata", con=conn)
@@ -52,7 +54,7 @@ def get_alldata(conn: Connection):
 
 def add_userdata(conn: Connection, username:str, search:str):
     try:
-        conn.execute(f"INSERT INTO userdata (username, search) VALUES ('{username}', '{search}')")
+        conn.execute(f"INSERT or IGNORE INTO userdata (username, search) VALUES ('{username}', '{search}')")
         conn.commit()
     except:
         print('Entry present')
