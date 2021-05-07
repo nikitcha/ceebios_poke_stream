@@ -107,7 +107,8 @@ with streamlit.beta_expander(label='Experimental: Related Species', expanded=Fal
     if len(df)>0:
         df = pandas.concat(df,axis=0)
         df = df.dropna().drop_duplicates()
-        streamlit.dataframe(df['canonical_name','rank','gbif_id'])
+        breakpoint()
+        streamlit.dataframe(df[['canonical_name','rank','gbif_id']])
     else:
         streamlit.write('No Articles Found')
 
