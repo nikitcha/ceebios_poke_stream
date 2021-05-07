@@ -103,10 +103,10 @@ with streamlit.beta_expander(label='Articles', expanded=True):
 with streamlit.beta_expander(label='Experimental: Related Species', expanded=False):
     df = []
     for _,row in docs.iterrows():
-        df.append(pandas.DataFrame(row['dict_species']))
+        df.append(pandas.DataFrame(row['dict_species'])['canonical_name','rank','gbif_id'])
     df = pandas.concat(df,axis=0)
     df = df.dropna().drop_duplicates()
-    streamlit.dataframe(df[['canonical_name','rank','gbif_id']])
+    streamlit.dataframe(df)
 
 
 name = react_search
