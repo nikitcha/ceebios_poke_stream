@@ -31,13 +31,16 @@ def deep_get(_dict, prop, default=None):
 
 docurl = "http://165.22.121.95/documents/search/"
 def make_url(species):
-    return f"{docurl}{species}&limit=0"
+    return f"{docurl}{species}"
 
 @streamlit.cache()
 def get_documents(search):
-    res = requests.get(make_url(search))
-    df = pandas.DataFrame(res.json()) #[['title','abstract', 'url','authors','publication_year']]
-    return df 
+    try:
+        res = requests.get(make_url(search))
+        df = pandas.DataFrame(res.json()) #[['title','abstract', 'url','authors','publication_year']]
+        return df 
+    except:
+        return pandas.DataFrame()
 
 @streamlit.cache(hash_funcs={weakref.KeyedRef: hash})
 def get_cannonical_name(search, lang='en'):

@@ -60,6 +60,8 @@ backbone = loaders.get_backbone(react_search)
 if not backbone or 'usageKey' not in backbone:
     streamlit.stop()
 taxon = backbone['usageKey']
+react_search = backbone['canonicalName']
+
 last_search = db.get_searchdata(conn, session_id)
 if last_search['search'] != react_search:   
     db.add_userdata(conn, username, react_search)
