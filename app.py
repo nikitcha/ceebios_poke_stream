@@ -102,8 +102,8 @@ with streamlit.beta_expander(label='Articles', expanded=True):
 
 with streamlit.beta_expander(label='Experimental: Related Species', expanded=False):
     df = []
-    for row in docs['dict_species']:
-        df.append(pandas.DataFrame(row))
+    for _,row in docs.iterrows():
+        df.append(pandas.DataFrame(row['dict_species']))
     df = pandas.concat(df,axis=0)
     df = df.dropna().drop_duplicates()
     streamlit.dataframe(df[['canonical_name','rank','gbif_id']])
