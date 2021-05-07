@@ -104,9 +104,12 @@ with streamlit.beta_expander(label='Experimental: Related Species', expanded=Fal
     df = []
     for _,row in docs.iterrows():
         df.append(pandas.DataFrame(row['dict_species'])['canonical_name','rank','gbif_id'])
-    df = pandas.concat(df,axis=0)
-    df = df.dropna().drop_duplicates()
-    streamlit.dataframe(df)
+    if len(df)>0:
+        df = pandas.concat(df,axis=0)
+        df = df.dropna().drop_duplicates()
+        streamlit.dataframe(df)
+    else:
+        streamlit.write('No Articles Found')
 
 
 name = react_search
