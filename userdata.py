@@ -43,7 +43,7 @@ def update_search_data(conn, uid, dic):
 
 def get_searchdata(conn: Connection, uid:str):
     df = pd.read_sql(f"SELECT * FROM searchdata where id='{uid}'", con=conn)
-    if df.any()
+    if len(df)>0:
         return df.iloc[0]
     else:
         return df
