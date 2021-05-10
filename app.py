@@ -127,6 +127,10 @@ with streamlit.beta_expander(label='Smart Links'):
     url = "https://www.semanticscholar.org/search?q={}&sort=relevance".format(val)
     open_page(url, 'Semantic Scholar')
 
+    val = name.replace(' ','%20')
+    url = "https://www.lens.org/lens/search/scholar/list?q={}".format(val)
+    open_page(url, 'Lens')
+
     val = name.replace(' ','+')
     url = "https://scholar.google.com/scholar?as_vis=0&q={}&hl=en&as_sdt=0,5".format(val)
     open_page(url, 'Google Scholar')
