@@ -9,11 +9,12 @@ from wikidata.client import Client
 from pygbif import species, occurrences, maps
 import weakref
 from pyvis import network as net
-import sqlite3
+from qwikidata.sparql import return_sparql_query_results
 
 client = Client() 
 sci_name = client.get('P225')
 im_prop = client.get('P18')
+vernacular = pandas.read_csv('vernacular_en.csv')
 
 CORE_API = "https://core.ac.uk:443/api-v2"
 API_KEY = "cJmoVEila3gB0zCIM2q1vpZnsKjr9XdG"
@@ -42,19 +43,48 @@ def get_documents(search):
     except:
         return pandas.DataFrame()
 
-@streamlit.cache(hash_funcs={weakref.KeyedRef: hash})
-def get_cannonical_name(search, lang='en'):
-    if not search:
-        return ''
-    wikipedia.set_lang(lang)
-    page = wikipedia.WikipediaPage(wikipedia.search(search, results=1, suggestion=True))
-    url = f"https://en.wikipedia.org/w/api.php?action=query&prop=pageprops&titles={page.title}&format=json"
-    result = requests.get(url).json()
-    entity = client.get(deep_get(result,'wikibase_item'), load=True)  
-    if sci_name in entity:
-        return entity[sci_name]
+@streamlit.cache()
+def get_canonical_name(search):
+    res = vernacular[vernacular['vernacularName'].str.contains(search)]
+    return {v:c for v,c in zip(res['vernacularName'],res['canonicalName'])}
+
+def safe_get(dic,fs):
+    if len(fs)==0:
+        return dic
+    if fs[0] in dic:
+        return safe_get(dic[fs[0]], fs[1:])
     else:
-        return ''
+        return None
+
+def get_wiki_info(taxon):
+    query = """SELECT ?item ?itemLabel ?itemDescription ?article ?image ?range
+    WHERE 
+    {
+    ?item wdt:P846 "$gbif$"
+    optional {?item wdt:P18 ?image.}
+    optional {?item wdt:P181 ?range.}
+    OPTIONAL {
+        ?article schema:about ?item ;
+        schema:isPartOf <https://en.wikipedia.org/> ; 
+        schema:name ?sitelink .
+    }
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+    }""".replace('$gbif$',str(taxon))
+    res = return_sparql_query_results(query)['results']['bindings']
+    out = {}
+    if len(res)>0:
+        out['image'] = safe_get(res[0], ['image','value'])
+        out['wikipedia'] = safe_get(res[0], ['article','value'])
+        out['wikidata'] = safe_get(res[0], ['item','value'])
+        out['range'] = safe_get(res[0], ['range','value'])
+        out['description'] = safe_get(res[0], ['itemDescription','value'])
+        out['label'] = safe_get(res[0], ['itemLabel','value'])
+        if out['wikipedia']:
+            out['page'] = wikipedia.WikipediaPage(out['wikipedia'].split('/')[-1])
+    return out
+
+
+
 
 @streamlit.cache(hash_funcs={weakref.KeyedRef: hash}, allow_output_mutation=True)
 def get_wiki(name, lang):

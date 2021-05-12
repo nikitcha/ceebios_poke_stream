@@ -50,17 +50,16 @@ streamlit.image('https://ceebios.com/wp-content/uploads/2017/06/ceebios-logo-06-
 streamlit.subheader('Open source project to help bio-mimicry research for Data Scientists and Engineers.')
 
 with streamlit.beta_expander('Common Name Search'):
-    lang = streamlit.radio('Language',['en','fr'])
     query = streamlit.text_input('Name',value="")
     if query:
-        canonical = loaders.get_cannonical_name(query, lang)
-        streamlit.write('Canonical Name: '+canonical)
+        streamlit.write(loaders.get_canonical_name(query))
 
 backbone = loaders.get_backbone(react_search)
 if not backbone or 'usageKey' not in backbone:
     streamlit.stop()
 taxon = backbone['usageKey']
 react_search = backbone['canonicalName']
+name = react_search
 
 last_search = db.get_searchdata(conn, session_id)
 if last_search['search'] != react_search:   
@@ -89,6 +88,34 @@ with streamlit.beta_expander('Images'):
         with c:
             streamlit.image(im, output_format='jpeg')
 
+with streamlit.beta_expander(label='Wikipedia'):
+    res = loaders.get_wiki_info(taxon)
+    if res:
+        if res['label']:
+            streamlit.subheader(res['label'].capitalize())
+        if res['description']:
+            streamlit.write(res['description'].capitalize())
+        c1,c2 = streamlit.beta_columns(2)
+        with c1:
+            if res['image']:
+                streamlit.image(res['image'])
+        with c2:
+            if res['range']:
+                if 'svg' in res['range']:
+                    streamlit.components.v1.iframe(res['range'])
+                else:
+                    streamlit.image(res['range'])    
+        if res['page']                  :
+            streamlit.markdown(res['page'].summary)
+        c1,c2 = streamlit.beta_columns(2)
+        with c1:
+            if res['wikipedia']:
+                open_page(url=res['wikipedia'], label='Wikipedia')
+        with c2:
+            if res['wikidata']:
+                open_page(url=res['wikipedia'], label='Wikidata')
+
+
 with streamlit.beta_expander(label='Articles', expanded=True):
     docs = loaders.get_documents(react_search)
     for _, row in docs.iterrows():
@@ -112,7 +139,6 @@ with streamlit.beta_expander(label='Experimental: Related Species', expanded=Fal
         streamlit.write('No Articles Found')
 
 
-name = react_search
 with streamlit.beta_expander(label='Smart Links'):
     url = "https://www.gbif.org/species/"+str(taxon)
     open_page(url, 'GBIF')
@@ -144,17 +170,6 @@ with streamlit.beta_expander(label='Smart Links'):
 if streamlit.checkbox('Maps'):
     data = loaders.get_coords(taxon, 300)
     streamlit.map(data)   
-
-if streamlit.checkbox(label='Wikipedia'):
-    lang = 'en' #streamlit.radio("Wikipedia Language",('en','fr'))
-    page, image = loaders.get_wiki(name, lang)
-    if image:
-        streamlit.image(image)
-    if page:            
-        streamlit.markdown(page.summary)
-        open_page(page.url)
-    else:
-        streamlit.write('No Wikipedia page found')
 
 if streamlit.checkbox(label='Other Resources'):
     engine = streamlit.radio("Engine",('CORE','Open Knowledge Map','Tree of Life','EOL','OneZoom')) #'World News (GDELT)')
