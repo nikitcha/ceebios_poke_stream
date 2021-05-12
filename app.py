@@ -102,7 +102,8 @@ with streamlit.beta_expander(label='Wikipedia'):
         with c2:
             if res['range']:
                 if 'svg' in res['range']:
-                    streamlit.components.v1.iframe(res['range'])
+                    #streamlit.components.v1.iframe(res['range'])
+                    streamlit.components.v1.html(f"""<img src="{res['range']}" alt="" width="100%" height="100%">""", height = 300)
                 else:
                     streamlit.image(res['range'])    
         if res['page']                  :
