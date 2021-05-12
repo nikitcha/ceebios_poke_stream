@@ -10,3 +10,4 @@ altair==4.1.0
 wikipedia==1.4.0
 matplotlib==3.3.4
 Wikidata==0.7.0
+qwikidata

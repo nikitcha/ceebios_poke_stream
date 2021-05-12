@@ -113,7 +113,7 @@ with streamlit.beta_expander(label='Wikipedia'):
                 open_page(url=res['wikipedia'], label='Wikipedia')
         with c2:
             if res['wikidata']:
-                open_page(url=res['wikipedia'], label='Wikidata')
+                open_page(url=res['wikidata'], label='Wikidata')
 
 
 with streamlit.beta_expander(label='Articles', expanded=True):
