@@ -75,7 +75,8 @@ with c1:
         last_search = db.get_searchdata(conn, session_id)
         children = loaders.get_children(backbone, limit=nchild, offset=last_search['offset'])
         db.update_search_data(conn, session_id, {'offset':last_search['offset']+nchild})
-        streamlit.write({r:c for r,c in zip(children['rank'].values, children['canonicalName'].values)})
+        if len(children)>0:
+            streamlit.write({(r+str(i+last_search['offset'])):c for i,(r,c) in enumerate(zip(children['rank'].values, children['canonicalName'].values))})
         #streamlit.dataframe(children)
 
 loaders.get_backbone_graph(backbone, children)

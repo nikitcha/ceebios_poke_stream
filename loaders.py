@@ -121,7 +121,7 @@ def get_backbone(search=''):
     else:
         return ''
 
-@streamlit.cache
+#@streamlit.cache
 def get_backbone_graph(backbone, children):
     g=net.Network(height='400px', width='100%',heading='')
     last_node, node = '',''
