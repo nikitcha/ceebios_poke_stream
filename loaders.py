@@ -10,6 +10,7 @@ from pygbif import species, occurrences, maps
 import weakref
 from pyvis import network as net
 from qwikidata.sparql import return_sparql_query_results
+import urllib
 
 client = Client() 
 sci_name = client.get('P225')
@@ -80,7 +81,8 @@ def get_wiki_info(taxon):
         out['description'] = safe_get(res[0], ['itemDescription','value'])
         out['label'] = safe_get(res[0], ['itemLabel','value'])
         if out['wikipedia']:
-            out['page'] = wikipedia.WikipediaPage(out['wikipedia'].split('/')[-1])
+            url = urllib.parse.unquote(out['wikipedia'])
+            out['page'] = wikipedia.WikipediaPage(url.split('/')[-1])
     return out
 
 
