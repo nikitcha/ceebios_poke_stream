@@ -83,6 +83,8 @@ def get_wiki_info(taxon):
         if out['wikipedia']:
             url = urllib.parse.unquote(out['wikipedia'])
             out['page'] = wikipedia.WikipediaPage(url.split('/')[-1])
+        else:
+            out['page'] = ''
     return out
 
 
