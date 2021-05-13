@@ -75,7 +75,8 @@ with c1:
         last_search = db.get_searchdata(conn, session_id)
         children = loaders.get_children(backbone, limit=nchild, offset=last_search['offset'])
         db.update_search_data(conn, session_id, {'offset':last_search['offset']+nchild})
-        streamlit.dataframe(children)
+        streamlit.write({r:c for r,c in zip(children['rank'].values), children['canonicalName'].values})
+        #streamlit.dataframe(children)
 
 loaders.get_backbone_graph(backbone, children)
 HtmlFile = open("example.html", 'r', encoding='utf-8')
@@ -103,7 +104,7 @@ with streamlit.beta_expander(label='Wikipedia'):
             if res['range']:
                 if 'svg' in res['range']:
                     #streamlit.components.v1.iframe(res['range'])
-                    streamlit.components.v1.html(f"""<img src="{res['range']}" alt="" width="100%" height="100%">""", height = 300)
+                    streamlit.components.v1.html(f"""<img src="{res['range']}" alt="" width="100%" height="100%">""", height = 400)
                 else:
                     streamlit.image(res['range'])    
         if res['page']                  :
