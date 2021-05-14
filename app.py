@@ -32,10 +32,13 @@ def open_page(url, label=''):
 conn = db.get_connection()
 db.init_db(conn)
 db.init_session(conn, session_id)
+streamlit.markdown("""<style>.small-font {font-size:10px} </style>""", unsafe_allow_html=True)
 
 with streamlit.sidebar:
     streamlit.write('Search for Species')
+    streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
     react_search = autosuggest(key="suggest")
+
 
 with streamlit.sidebar.beta_expander('See my search history'):
     username = streamlit.text_input(label='User Name', value='anonymous')
@@ -50,6 +53,7 @@ streamlit.image('https://ceebios.com/wp-content/uploads/2017/06/ceebios-logo-06-
 streamlit.subheader('Open source project to help bio-mimicry research for Data Scientists and Engineers.')
 
 with streamlit.beta_expander('Common Name Search'):
+    streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
     query = streamlit.text_input('Name',value="")
     if query:
         streamlit.write(loaders.get_canonical_name(query))
@@ -85,12 +89,15 @@ source_code = HtmlFile.read()
 streamlit.components.v1.html(source_code, height = 400)       
 
 with streamlit.beta_expander('Images'):
+    streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
     cs = streamlit.beta_columns(6)
     for c,im in zip(cs,loaders.get_images(taxon, 6, True)):
         with c:
             streamlit.image(im, output_format='jpeg')
 
 with streamlit.beta_expander(label='Wikipedia'):
+    streamlit.markdown('<p class="small-font">Source: Wikidata & Wikipedia</p>', unsafe_allow_html=True)
+
     res = loaders.get_wiki_info(taxon)
     if res:
         if res['label']:
@@ -120,6 +127,8 @@ with streamlit.beta_expander(label='Wikipedia'):
 
 
 with streamlit.beta_expander(label='Articles', expanded=True):
+    streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
+
     docs = loaders.get_documents(react_search)
     for _, row in docs.iterrows():
         c1,c2,c3 = streamlit.beta_columns((2,4,1))
@@ -131,6 +140,7 @@ with streamlit.beta_expander(label='Articles', expanded=True):
             streamlit.write(row['publication_year'])
 
 with streamlit.beta_expander(label='Experimental: Related Species', expanded=False):
+    streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
     df = []
     for _,row in docs.iterrows():
         df.append(pandas.DataFrame(row['dict_species']))
