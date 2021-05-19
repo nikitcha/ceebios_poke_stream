@@ -135,4 +135,5 @@ dmypy.json
 # misc
 *.db
 example.html
+graph.html
 test.py

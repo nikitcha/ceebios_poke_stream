@@ -32,7 +32,18 @@ def open_page(url, label=''):
 conn = db.get_connection()
 db.init_db(conn)
 db.init_session(conn, session_id)
-streamlit.markdown("""<style>.small-font {font-size:10px} </style>""", unsafe_allow_html=True)
+streamlit.markdown("""
+                    <style>
+                    .small-font {font-size:10px} 
+                    [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
+                        width: 600;
+                    }
+                    [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
+                        width: 600;
+                        margin-left: -600;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
 
 with streamlit.sidebar:
     streamlit.write('Search for Species')
