@@ -36,11 +36,11 @@ streamlit.markdown("""
                     <style>
                     .small-font {font-size:10px} 
                     [data-testid="stSidebar"][aria-expanded="true"] > div:first-child {
-                        width: 600;
+                        width: 450px;
                     }
                     [data-testid="stSidebar"][aria-expanded="false"] > div:first-child {
-                        width: 600;
-                        margin-left: -600;
+                        width: 450px;
+                        margin-left: -450px;
                     }
                     </style>
                     """, unsafe_allow_html=True)
