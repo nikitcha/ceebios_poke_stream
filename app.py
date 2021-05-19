@@ -130,26 +130,27 @@ with streamlit.beta_expander(label='Articles', expanded=True):
     streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
 
     docs = loaders.get_documents(react_search)
-    for _, row in docs.iterrows():
-        c1,c2,c3 = streamlit.beta_columns((2,4,1))
+    loaders.draw_doc_graph(docs)
+    HtmlFile = open("graph.html", 'r', encoding='utf-8')
+    source_code = HtmlFile.read() 
+    streamlit.components.v1.html(source_code, height = 800)       
+    cs = streamlit.beta_columns((1,2,4,1,1))
+    labels = ['id','Title','Abstract','Field','Year']
+    for c,l in zip(cs,labels):
+        with c:
+            streamlit.write(l)
+    for i, row in docs.iterrows():
+        c1,c2,c3,c4,c5 = streamlit.beta_columns((1,2,4,1,1))                    
         with c1:
-            streamlit.write(row['title'])
+            streamlit.write(i)
         with c2:
-            streamlit.write(row['abstract'])
+            streamlit.write(row['title'])
         with c3:
+            streamlit.write(row['abstract'])
+        with c4:
+            streamlit.write(','.join(row['scientific_fields']))
+        with c5:
             streamlit.write(row['publication_year'])
-
-with streamlit.beta_expander(label='Experimental: Related Species', expanded=False):
-    streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
-    df = []
-    for _,row in docs.iterrows():
-        df.append(pandas.DataFrame(row['dict_species']))
-    if len(df)>0:
-        df = pandas.concat(df,axis=0)
-        df = df.dropna().drop_duplicates()
-        streamlit.dataframe(df[['canonical_name','rank','gbif_id']])
-    else:
-        streamlit.write('No Articles Found')
 
 
 with streamlit.beta_expander(label='Smart Links'):

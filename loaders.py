@@ -180,3 +180,19 @@ def get_children(backbone, limit=5, offset=0):
     else:
         children = []
     return children
+
+def draw_doc_graph(docs):
+    species = docs[['dict_species']]
+    g=net.Network(height='800px', width='100%',heading='')
+
+    for i,row in species.iterrows():
+        g.add_node('paper '+str(i), size=2)
+        names = []
+        for gbif in row[0]:
+            names.append(gbif['canonical_name'])
+            rank = gbif['rank']
+            if rank not in palette:
+                rank = 'species'        
+            g.add_node(names[-1], color=palette[rank], size=2)
+            g.add_edge(names[-1], 'paper '+str(i))        
+    g.write_html('graph.html')
