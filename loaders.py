@@ -11,14 +11,22 @@ import weakref
 from pyvis import network as net
 from qwikidata.sparql import return_sparql_query_results
 import urllib
+from py2neo import Graph
+
 
 client = Client() 
 sci_name = client.get('P225')
 im_prop = client.get('P18')
 vernacular = pandas.read_csv('vernacular_en.csv')
 
-CORE_API = "https://core.ac.uk:443/api-v2"
+CORE_API = "https://core.ac.uk:443/apnamei-v2"
 API_KEY = "cJmoVEila3gB0zCIM2q1vpZnsKjr9XdG"
+db_params = {
+    "uri":"localhost:7474",
+    "user":"neo4j",
+    "password":"Pokedex"
+}
+#graph = Graph(db_params['uri'], user=db_params['user'], password=db_params['password'])
 
 app_order = ['kingdom','phylum','class','order','family','genus','species']
 palette = {'species':'#FB2056','genus':'#FC8F5B','family':'#FFD055','order':'#8DD58C','class':'#38C9B1','phylum':'#1798C3','kingdom':'#182573'}
@@ -88,11 +96,8 @@ def get_wiki_info(taxon):
     return out
 
 
-
-
 @streamlit.cache(hash_funcs={weakref.KeyedRef: hash}, allow_output_mutation=True)
-def get_wiki(name, lang):
-    wikipedia.set_lang(lang)
+def get_wiki(name):
     try:
         page = wikipedia.WikipediaPage(wikipedia.search(name, results=1))
         url = f"https://en.wikipedia.org/w/api.php?action=query&prop=pageprops&titles={page.title}&format=json"
@@ -180,6 +185,52 @@ def get_children(backbone, limit=5, offset=0):
     else:
         children = []
     return children
+
+#@streamlit.cache(hash_funcs={Graph: id})
+def get_papers(gbif):
+    query = """
+    match (:Taxon {{taxonid:{}}})<-[:MENTIONS]-(p:Paper) return p
+    """.format(gbif)
+    res = graph.query(query)
+    return res
+
+#@streamlit.cache(hash_funcs={Graph: id})
+def get_mentions(paperid):
+    query = """
+    match (p:Paper {{id:'{}'}})-[:MENTIONS]->(t:Taxon) return t
+    """.format(paperid)
+    res = graph.query(query)
+    return res
+
+def draw_knowledge_graph(backbone, maxnum = 1000, shift=0):
+    gbif = backbone['usageKey']
+    name = backbone['canonicalName']
+    rank = backbone['rank'].lower()
+    if rank not in palette:
+        rank = 'species'        
+    g=net.Network(height='800px', width='100%',heading='')
+    name = name.lower()
+    g.add_node(name, color=palette[rank], size=5)
+    tnodes = [name]
+    papers = {'id':[], 'title':[],'abstract':[],'year':[],'s2url':[],'url':[],'field':[]}
+    for i,paper in enumerate(get_papers(gbif)):
+        for k in ['title','abstract','year','s2url','url','field']:
+            papers[k] += [paper['p'][k]]
+        papers['id'] += [i]
+        pname = 'Paper {}'.format(str(i))
+        g.add_node(pname, size=5)
+        g.add_edge(name, pname)
+        for j,taxon in enumerate(get_mentions(paper['p']['id'])):
+            tname = taxon['t']['name'].lower()
+            trank = taxon['t']['rank'].lower()
+            if trank not in palette:
+                trank = 'species' 
+            if tname not in tnodes:
+                g.add_node(tname, color=palette[trank], size=5)
+                tnodes += [tname]
+            g.add_edge(tname, pname)
+    g.write_html('papers.html')
+    return pandas.DataFrame(papers).iloc[shift:shift+maxnum]
 
 def draw_doc_graph(docs):
     species = docs[['dict_species']]

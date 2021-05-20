@@ -108,33 +108,39 @@ with streamlit.beta_expander('Images'):
 
 with streamlit.beta_expander(label='Wikipedia'):
     streamlit.markdown('<p class="small-font">Source: Wikidata & Wikipedia</p>', unsafe_allow_html=True)
+    page, image_url = loaders.get_wiki(name)
+    if image_url:
+        streamlit.image(image_url)
+    if page:
+        streamlit.write(page.summary)
 
-    res = loaders.get_wiki_info(taxon)
-    if res:
-        if res['label']:
-            streamlit.subheader(res['label'].capitalize())
-        if res['description']:
-            streamlit.write(res['description'].capitalize())
-        c1,c2 = streamlit.beta_columns(2)
-        with c1:
-            if res['image']:
-                streamlit.image(res['image'])
-        with c2:
-            if res['range']:
-                if 'svg' in res['range']:
-                    #streamlit.components.v1.iframe(res['range'])
-                    streamlit.components.v1.html(f"""<img src="{res['range']}" alt="" width="100%" height="100%">""", height = 400)
-                else:
-                    streamlit.image(res['range'])    
-        if res['page']                  :
-            streamlit.markdown(res['page'].summary)
-        c1,c2 = streamlit.beta_columns(2)
-        with c1:
-            if res['wikipedia']:
-                open_page(url=res['wikipedia'], label='Wikipedia')
-        with c2:
-            if res['wikidata']:
-                open_page(url=res['wikidata'], label='Wikidata')
+    if False:
+        res = loaders.get_wiki_info(taxon)
+        if res:
+            if res['label']:
+                streamlit.subheader(res['label'].capitalize())
+            if res['description']:
+                streamlit.write(res['description'].capitalize())
+            c1,c2 = streamlit.beta_columns(2)
+            with c1:
+                if res['image']:
+                    streamlit.image(res['image'])
+            with c2:
+                if res['range']:
+                    if 'svg' in res['range']:
+                        #streamlit.components.v1.iframe(res['range'])
+                        streamlit.components.v1.html(f"""<img src="{res['range']}" alt="" width="100%" height="100%">""", height = 400)
+                    else:
+                        streamlit.image(res['range'])    
+            if res['page']                  :
+                streamlit.markdown(res['page'].summary)
+            c1,c2 = streamlit.beta_columns(2)
+            with c1:
+                if res['wikipedia']:
+                    open_page(url=res['wikipedia'], label='Wikipedia')
+            with c2:
+                if res['wikidata']:
+                    open_page(url=res['wikidata'], label='Wikidata')
 
 
 with streamlit.beta_expander(label='Articles', expanded=True):
