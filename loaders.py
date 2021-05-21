@@ -11,23 +11,11 @@ import weakref
 from pyvis import network as net
 from qwikidata.sparql import return_sparql_query_results
 import urllib
-from py2neo import Graph
-
 
 client = Client() 
 sci_name = client.get('P225')
 im_prop = client.get('P18')
 vernacular = pandas.read_csv('vernacular_en.csv')
-
-CORE_API = "https://core.ac.uk:443/apnamei-v2"
-API_KEY = "cJmoVEila3gB0zCIM2q1vpZnsKjr9XdG"
-db_params = {
-    "uri":"localhost:7474",
-    "user":"neo4j",
-    "password":"Pokedex"
-}
-#graph = Graph(db_params['uri'], user=db_params['user'], password=db_params['password'])
-
 app_order = ['kingdom','phylum','class','order','family','genus','species']
 palette = {'species':'#FB2056','genus':'#FC8F5B','family':'#FFD055','order':'#8DD58C','class':'#38C9B1','phylum':'#1798C3','kingdom':'#182573'}
 
@@ -109,49 +97,12 @@ def get_wiki(name):
         return None,None
 
 @streamlit.cache
-def search_core(query, page,lang, cnt = 10):
-    try:
-        params = {"page": page, "pageSize": cnt, "apiKey": API_KEY, "language.name":lang}
-        core_query = urllib.parse.quote(query)
-        search_url = "/".join((CORE_API, "articles", "search", core_query))
-        response = requests.get(search_url, params).json()
-        info = response['data']
-        fields = {'title', 'authors'}
-        pubs = [{f:inf.get(f) for f in fields} for inf in info]
-        return pandas.DataFrame(pubs)
-    except:
-        return ''
-
-@streamlit.cache
 def get_backbone(search=''):
     if search and len(search)>2:
         backbone = species.name_backbone(name=search, kingdom='animals')
         return backbone
     else:
         return ''
-
-#@streamlit.cache
-def get_backbone_graph(backbone, children):
-    g=net.Network(height='400px', width='100%',heading='')
-    last_node, node = '',''
-    for o in app_order:
-        if o in backbone:
-            g.add_node(backbone[o], color=palette[o])
-            node = backbone[o]                    
-            if last_node and node:
-                g.add_edge(node,last_node)
-        last_node = node
-
-    if last_node and len(children)>0:
-        for index, row in children.iterrows():
-            rank = row['rank'].lower()
-            if rank in palette:
-                g.add_node(row['canonicalName'], color=palette[rank])
-            else:
-                g.add_node(row['canonicalName'])
-            g.add_edge(last_node,row['canonicalName'])        
-    g.write_html('example.html')
-
 
 @streamlit.cache
 def get_images(search, limit=4, istaxon=True):
@@ -175,62 +126,6 @@ def get_coords(taxon, limit=100, istaxon=True):
         return coords
     else:
         return pandas.DataFrame()    
-
-@streamlit.cache
-def _get_children(backbone, limit=5, offset=0):
-    children = species.name_usage(key=backbone['usageKey'], data='children', limit=limit,offset=offset)['results']
-    children = pandas.DataFrame(children)
-    if 'canonicalName' in children.columns:
-        children = children[['canonicalName','rank']].dropna()
-    else:
-        children = []
-    return children
-
-#@streamlit.cache(hash_funcs={Graph: id})
-def get_papers(gbif):
-    query = """
-    match (:Taxon {{taxonid:{}}})<-[:MENTIONS]-(p:Paper) return p
-    """.format(gbif)
-    res = graph.query(query)
-    return res
-
-#@streamlit.cache(hash_funcs={Graph: id})
-def get_mentions(paperid):
-    query = """
-    match (p:Paper {{id:'{}'}})-[:MENTIONS]->(t:Taxon) return t
-    """.format(paperid)
-    res = graph.query(query)
-    return res
-
-def draw_knowledge_graph(backbone, maxnum = 1000, shift=0):
-    gbif = backbone['usageKey']
-    name = backbone['canonicalName']
-    rank = backbone['rank'].lower()
-    if rank not in palette:
-        rank = 'species'        
-    g=net.Network(height='800px', width='100%',heading='')
-    name = name.lower()
-    g.add_node(name, color=palette[rank], size=5)
-    tnodes = [name]
-    papers = {'id':[], 'title':[],'abstract':[],'year':[],'s2url':[],'url':[],'field':[]}
-    for i,paper in enumerate(get_papers(gbif)):
-        for k in ['title','abstract','year','s2url','url','field']:
-            papers[k] += [paper['p'][k]]
-        papers['id'] += [i]
-        pname = 'Paper {}'.format(str(i))
-        g.add_node(pname, size=5)
-        g.add_edge(name, pname)
-        for j,taxon in enumerate(get_mentions(paper['p']['id'])):
-            tname = taxon['t']['name'].lower()
-            trank = taxon['t']['rank'].lower()
-            if trank not in palette:
-                trank = 'species' 
-            if tname not in tnodes:
-                g.add_node(tname, color=palette[trank], size=5)
-                tnodes += [tname]
-            g.add_edge(tname, pname)
-    g.write_html('papers.html')
-    return pandas.DataFrame(papers).iloc[shift:shift+maxnum]
 
 def draw_doc_graph(docs):
     species = docs[['dict_species']]
@@ -260,7 +155,6 @@ def get_cyto_backbone(backbone):
             last_node = name
     return nodes+edges
 
-@streamlit.cache
 def get_children(backbone, this_session, limit):
     if this_session.selected in this_session.offset:
         offset = this_session.offset[this_session.selected]

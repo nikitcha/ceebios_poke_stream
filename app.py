@@ -232,7 +232,7 @@ if streamlit.checkbox('Maps'):
     streamlit.map(data)   
 
 if streamlit.checkbox(label='Other Resources'):
-    engine = streamlit.radio("Engine",('CORE','Open Knowledge Map','Tree of Life','EOL','OneZoom')) #'World News (GDELT)')
+    engine = streamlit.radio("Engine",('Open Knowledge Map','Tree of Life','EOL','OneZoom')) #'World News (GDELT)')
     if engine=='Tree of Life':
         url = "https://tree.opentreeoflife.org/"
         open_page(url)
@@ -247,18 +247,3 @@ if streamlit.checkbox(label='Other Resources'):
         streamlit.components.v1.iframe(url, height=800, scrolling=True)
     elif engine == 'Open Knowledge Map':
         streamlit.components.v1.iframe("https://openknowledgemaps.org/", height=800, scrolling=True)
-    elif engine=='CORE':
-        c1,c2,c3 = streamlit.beta_columns((1,1,1))
-        with c1:
-            corepage = streamlit.number_input(label='Page', min_value=1,value=1)
-        with c2:
-            corelang = streamlit.radio("CORE Language",('English','French'))
-        with c3:
-            #if streamlit.button(label='Open in Browser'):
-            url = "https://core.ac.uk/search?q="+name.replace(' ','+')
-            open_page(url)
-        pubs = loaders.search_core(name,corepage,corelang)
-        streamlit.table(pubs)
-    elif engine=='World News (GDELT)':
-        articles = loaders.get_gdelt(name)
-        streamlit.write(articles)
