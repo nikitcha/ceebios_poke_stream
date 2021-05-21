@@ -177,7 +177,7 @@ def get_coords(taxon, limit=100, istaxon=True):
         return pandas.DataFrame()    
 
 @streamlit.cache
-def get_children(backbone, limit=5, offset=0):
+def _get_children(backbone, limit=5, offset=0):
     children = species.name_usage(key=backbone['usageKey'], data='children', limit=limit,offset=offset)['results']
     children = pandas.DataFrame(children)
     if 'canonicalName' in children.columns:
@@ -247,3 +247,34 @@ def draw_doc_graph(docs):
             g.add_node(names[-1], color=palette[rank], size=5)
             g.add_edge(names[-1], 'paper '+str(i))        
     g.write_html('graph.html')
+
+def get_cyto_backbone(backbone):
+    nodes,edges = [],[]
+    last_node = ''
+    for o in app_order:
+        if o in backbone:
+            name = backbone[o].lower().capitalize()
+            nodes += [{'data': { 'id': name, 'label': backbone[o.lower()+'Key'], 'rank':o.upper() }}]
+            if last_node:
+                edges += [{'data': { 'source': name, 'target': last_node}}]
+            last_node = name
+    return nodes+edges
+
+@streamlit.cache
+def get_children(backbone, this_session, limit):
+    if this_session.selected in this_session.offset:
+        offset = this_session.offset[this_session.selected]
+    else:
+        offset = 0
+    children = species.name_usage(key=this_session.selected, data='children', limit=limit,offset=offset)['results']
+    children = pandas.DataFrame(children)
+    if 'canonicalName' in children.columns:
+        children = children[['canonicalName','rank','taxonID']].dropna()
+    nodes,edges = [],[]
+    base_name = [g['data']['id'] for g in this_session.graph if (g['data'].get('label')==this_session.selected)][0]
+    for _,row in children.iterrows():
+        taxon = int(row['taxonID'].replace('gbif:',''))
+        name = row['canonicalName'].lower().capitalize()
+        nodes += [{'data': { 'id': name, 'label': taxon, 'rank':row['rank']}}]
+        edges += [{'data': { 'source': name, 'target': base_name}}]
+    return nodes+edges

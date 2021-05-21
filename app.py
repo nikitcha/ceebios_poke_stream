@@ -2,12 +2,14 @@ import streamlit
 import loaders
 import urllib
 import os
+import session
 import pandas
 import userdata as db
 import streamlit.components.v1 as components
 import streamlit.report_thread as ReportThread
 streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
-session_id = ReportThread.get_report_ctx().session_id
+
+this_session = session.get(graph=[], selected=0, offset={}, last_search='')
 
 # Define location of the packaged frontend build
 parent_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,10 +19,21 @@ _autosuggest = components.declare_component(
     path=os.path.join(parent_dir, "build_autosuggest")
 )
 
-# Edit arguments sent and result received from React component, so the initial input is converted to an array and returned value extracted from the component
 def autosuggest(key=None):
     value = _autosuggest(key=key)
     return value
+
+
+_cytoscape = components.declare_component(
+    "custom_dot",
+    path=os.path.join(parent_dir, "build_cytoscape")
+)
+
+# Edit arguments sent and result received from React component, so the initial input is converted to an array and returned value extracted from the component
+def cytoscape(elements,  key=None) -> str:
+    component_value = _cytoscape(elements=elements,  key=key)
+    return component_value
+
 
 def open_page(url, label=''):    
     if not label:
@@ -31,7 +44,6 @@ def open_page(url, label=''):
 
 conn = db.get_connection()
 db.init_db(conn)
-db.init_session(conn, session_id)
 streamlit.markdown("""
                     <style>
                     .small-font {font-size:10px} 
@@ -48,8 +60,7 @@ streamlit.markdown("""
 with streamlit.sidebar:
     streamlit.write('Search for Species')
     streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
-    react_search = autosuggest(key="suggest")
-
+    name = autosuggest(key="suggest")
 
 with streamlit.sidebar.beta_expander('See my search history'):
     username = streamlit.text_input(label='User Name', value='anonymous')
@@ -69,35 +80,51 @@ with streamlit.beta_expander('Common Name Search'):
     if query:
         streamlit.write(loaders.get_canonical_name(query))
 
-backbone = loaders.get_backbone(react_search)
+backbone = loaders.get_backbone(name)
 if not backbone or 'usageKey' not in backbone:
     streamlit.stop()
+
 taxon = backbone['usageKey']
-react_search = backbone['canonicalName']
-name = react_search
+name = backbone['canonicalName']
 
-last_search = db.get_searchdata(conn, session_id)
-if last_search['search'] != react_search:   
-    db.add_userdata(conn, username, react_search)
-    db.update_search_data(conn, session_id, {'search':react_search, 'offset':0})
+if this_session.last_search != name:   
+    db.add_userdata(conn, username, name)
+    this_session.graph = loaders.get_cyto_backbone(backbone)
+    this_session.offset = {}
+    this_session.selected = 0
+    this_session.last_search = name
 
-c1, c2 = streamlit.beta_columns((1,1))
-children = []
-with c2:
-    nchild = streamlit.slider(label='Number of Children',min_value=0,max_value=20,value=5)
-with c1:
-    if streamlit.button('Get Children'):
-        last_search = db.get_searchdata(conn, session_id)
-        children = loaders.get_children(backbone, limit=nchild, offset=last_search['offset'])
-        db.update_search_data(conn, session_id, {'offset':last_search['offset']+nchild})
-        if len(children)>0:
-            streamlit.write({(r+str(i+last_search['offset'])):c for i,(r,c) in enumerate(zip(children['rank'].values, children['canonicalName'].values))})
-        #streamlit.dataframe(children)
 
-loaders.get_backbone_graph(backbone, children)
-HtmlFile = open("example.html", 'r', encoding='utf-8')
-source_code = HtmlFile.read() 
-streamlit.components.v1.html(source_code, height = 400)       
+with streamlit.form(key='graph'):
+    c1, c2,c3 = streamlit.beta_columns((1,1,2))
+    children = []
+    with c3:
+        nchild = streamlit.slider(label='Number of Children',min_value=0,max_value=20,value=5)
+    with c1:
+        if streamlit.form_submit_button('Get Children'):
+            if this_session.selected:
+                children = loaders.get_children(backbone, this_session, limit=nchild)
+                this_session.graph = this_session.graph+children
+                if this_session.selected in this_session.offset:
+                    this_session.offset[this_session.selected] += nchild
+                else:
+                    this_session.offset.update({this_session.selected:nchild})
+            else:
+                streamlit.warning('No Node Selected')
+    with c2:
+        if streamlit.form_submit_button('Reset'):
+            this_session.graph = loaders.get_cyto_backbone(backbone)
+            this_session.selected = 0 
+            this_session.offset = {}
+
+out = cytoscape(this_session.graph)
+if out:
+    selected, graph = out
+    this_session.graph = graph
+    this_session.selected = selected    
+    taxon = selected
+    name = [g['data']['id'] for g in this_session.graph if (g['data'].get('label')==taxon)][0]
+    streamlit.write('Selected: Taxon={}, Name={}'.format(taxon, name))
 
 with streamlit.beta_expander('Images'):
     streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
@@ -143,21 +170,22 @@ with streamlit.beta_expander(label='Wikipedia'):
                     open_page(url=res['wikidata'], label='Wikidata')
 
 
-with streamlit.beta_expander(label='Articles', expanded=True):
+with streamlit.beta_expander(label='Articles', expanded=False):
     streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
 
-    docs = loaders.get_documents(react_search)
+    docs = loaders.get_documents(name)
     loaders.draw_doc_graph(docs)
     HtmlFile = open("graph.html", 'r', encoding='utf-8')
     source_code = HtmlFile.read() 
     streamlit.components.v1.html(source_code, height = 800)       
-    cs = streamlit.beta_columns((1,2,4,1,1))
-    labels = ['id','Title','Abstract','Field','Year']
+    cs = streamlit.beta_columns((1,2,4,1,1,1))
+    breakpoint()
+    labels = ['id','Title','Abstract','Field','Year', 'URL']
     for c,l in zip(cs,labels):
         with c:
             streamlit.write(l)
     for i, row in docs.iterrows():
-        c1,c2,c3,c4,c5 = streamlit.beta_columns((1,2,4,1,1))                    
+        c1,c2,c3,c4,c5,c6 = streamlit.beta_columns((1,2,4,1,1,1))                    
         with c1:
             streamlit.write(i)
         with c2:
@@ -168,6 +196,8 @@ with streamlit.beta_expander(label='Articles', expanded=True):
             streamlit.write(','.join(row['scientific_fields']))
         with c5:
             streamlit.write(row['publication_year'])
+        with c6:
+            streamlit.write(row['url'])
 
 
 with streamlit.beta_expander(label='Smart Links'):
