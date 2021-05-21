@@ -179,7 +179,6 @@ with streamlit.beta_expander(label='Articles', expanded=False):
     source_code = HtmlFile.read() 
     streamlit.components.v1.html(source_code, height = 800)       
     cs = streamlit.beta_columns((1,2,4,1,1,1))
-    breakpoint()
     labels = ['id','Title','Abstract','Field','Year', 'URL']
     for c,l in zip(cs,labels):
         with c:
@@ -197,7 +196,7 @@ with streamlit.beta_expander(label='Articles', expanded=False):
         with c5:
             streamlit.write(row['publication_year'])
         with c6:
-            streamlit.write(row['url'])
+            streamlit.write('[Link]({})'.format(row['url']))
 
 
 with streamlit.beta_expander(label='Smart Links'):
