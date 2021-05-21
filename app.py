@@ -175,10 +175,10 @@ with streamlit.beta_expander(label='Articles', expanded=False):
     streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
 
     docs = loaders.get_documents(name)
-    loaders.draw_doc_graph(docs)
-    HtmlFile = open("graph.html", 'r', encoding='utf-8')
-    source_code = HtmlFile.read() 
-    streamlit.components.v1.html(source_code, height = 800)       
+    if loaders.draw_doc_graph(docs):
+        HtmlFile = open("graph.html", 'r', encoding='utf-8')
+        source_code = HtmlFile.read() 
+        streamlit.components.v1.html(source_code, height = 800)       
     cs = streamlit.beta_columns((1,2,4,1,1,1))
     labels = ['id','Title','Abstract','Field','Year', 'URL']
     for c,l in zip(cs,labels):

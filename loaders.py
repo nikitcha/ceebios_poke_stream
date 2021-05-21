@@ -128,20 +128,23 @@ def get_coords(taxon, limit=100, istaxon=True):
         return pandas.DataFrame()    
 
 def draw_doc_graph(docs):
-    species = docs[['dict_species']]
-    g=net.Network(height='800px', width='100%',heading='')
-
-    for i,row in species.iterrows():
-        g.add_node('paper '+str(i), size=5)
-        names = []
-        for gbif in row[0]:
-            names.append(gbif['canonical_name'])
-            rank = gbif['rank']
-            if rank not in palette:
-                rank = 'species'        
-            g.add_node(names[-1], color=palette[rank], size=5)
-            g.add_edge(names[-1], 'paper '+str(i))        
-    g.write_html('graph.html')
+    if len(docs)>0:
+        species = docs[['dict_species']]
+        g=net.Network(height='800px', width='100%',heading='')
+        for i,row in species.iterrows():
+            g.add_node('paper '+str(i), size=5)
+            names = []
+            for gbif in row[0]:
+                names.append(gbif['canonical_name'])
+                rank = gbif['rank']
+                if rank not in palette:
+                    rank = 'species'        
+                g.add_node(names[-1], color=palette[rank], size=5)
+                g.add_edge(names[-1], 'paper '+str(i))        
+        g.write_html('graph.html')
+        return True
+    else:
+        return False
 
 def get_cyto_backbone(backbone):
     nodes,edges = [],[]
