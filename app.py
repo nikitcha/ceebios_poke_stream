@@ -135,13 +135,14 @@ with streamlit.beta_expander('Images'):
 
 with streamlit.beta_expander(label='Wikipedia'):
     streamlit.markdown('<p class="small-font">Source: Wikidata & Wikipedia</p>', unsafe_allow_html=True)
-    page, image_url = loaders.get_wiki(name)
-    if image_url:
-        streamlit.image(image_url)
-    if page:
-        streamlit.write(page.summary)
-
     if False:
+        page, image_url = loaders.get_wiki(name)
+        if image_url:
+            streamlit.image(image_url)
+        if page:
+            streamlit.write(page.summary)
+
+    if True:
         res = loaders.get_wiki_info(taxon)
         if res:
             if res['label']:
