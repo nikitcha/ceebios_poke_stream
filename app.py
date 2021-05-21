@@ -99,7 +99,7 @@ with streamlit.form(key='graph'):
     c1, c2,c3 = streamlit.beta_columns((1,1,2))
     children = []
     with c3:
-        nchild = streamlit.slider(label='Number of Children',min_value=0,max_value=20,value=5)
+        nchild = streamlit.slider(label='Number of Children',min_value=0,max_value=50,value=5)
     with c1:
         if streamlit.form_submit_button('Get Children'):
             if this_session.selected:
