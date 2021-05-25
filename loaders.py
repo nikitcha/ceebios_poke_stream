@@ -194,4 +194,6 @@ def get_neo_papers(taxon, limit=10, offset=0):
         nodes += [{'data': { 'id': 'Paper '+str(ctr), 'label': res['p']['id'], 'rank':'PAPER'}}]
         edges += [{'data': { 'source': res['t']['name'], 'target': 'Paper '+str(ctr)}}]
         ctr += 1
+    nodes += [{'data': { 'id': 'Photosynthesis', 'label': 'Photosynthesis', 'rank':'FUNCTION'}}]
+    edges += [{'data': { 'source': 'Photosynthesis', 'target': 'Paper '+str(0)}}]
     return nodes+edges
