@@ -11,6 +11,10 @@ import weakref
 from pyvis import network as net
 from qwikidata.sparql import return_sparql_query_results
 import urllib
+from py2neo import Graph
+import neo4j_credentials as nc
+graph = Graph("bolt://localhost:7687", auth=(nc.user, nc.password))
+
 
 client = Client() 
 sci_name = client.get('P225')
@@ -174,4 +178,20 @@ def get_children(backbone, this_session, limit):
         name = row['canonicalName'].lower().capitalize()
         nodes += [{'data': { 'id': name, 'label': taxon, 'rank':row['rank']}}]
         edges += [{'data': { 'source': name, 'target': base_name}}]
+    return nodes+edges
+
+def get_neo_papers(taxon, limit=10, offset=0):
+    query = """
+    match (t:Taxon {{id:{}}})<-[:MENTIONS]-(p:Paper)
+    return t,p
+    skip {}
+    limit {};
+    """.format(taxon, offset, limit)
+    nodes, edges, ctr = [],[], 0
+    results = graph.run(query).data()
+    for res in results:
+        nodes += [{'data': { 'id': res['t']['name'], 'label': taxon, 'rank':res['t']['rank'].upper()}}]
+        nodes += [{'data': { 'id': 'Paper '+str(ctr), 'label': res['p']['id'], 'rank':'PAPER'}}]
+        edges += [{'data': { 'source': res['t']['name'], 'target': 'Paper '+str(ctr)}}]
+        ctr += 1
     return nodes+edges

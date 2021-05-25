@@ -7,9 +7,10 @@ import pandas
 import userdata as db
 import streamlit.components.v1 as components
 import streamlit.report_thread as ReportThread
+import re 
 streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
 
-this_session = session.get(graph=[], selected=0, offset={}, last_search='')
+this_session = session.get(tree_graph=[], tree_selected=0, tree_offset={}, last_search='')
 
 # Define location of the packaged frontend build
 parent_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,11 +37,12 @@ def cytoscape(elements,  key=None) -> str:
 
 
 def open_page(url, label=''):    
-    if not label:
-        link = '[Open in Browser]({})'.format(url)
-    else:
-        link = '[{}]({})'.format(label, url)
-    streamlit.write(link)
+    if url:
+        if not label:
+            link = '[Open in Browser]({})'.format(url)
+        else:
+            link = '[{}]({})'.format(label, url)
+        streamlit.write(link)
 
 conn = db.get_connection()
 db.init_db(conn)
@@ -126,6 +128,20 @@ if out:
     name = [g['data']['id'] for g in this_session.graph if (g['data'].get('label')==taxon)][0]
     streamlit.write('Selected: Taxon={}, Name={}'.format(taxon, name))
 
+with streamlit.form(key='graph paper'):
+    c1, c2 = streamlit.beta_columns((1,1))
+    with c1:
+        if streamlit.form_submit_button('Get Mentions'):
+            papers = loaders.get_neo_papers(taxon)
+    with c2:
+        if streamlit.form_submit_button('Reset'):
+            papers = loaders.get_neo_papers(taxon)
+papers = loaders.get_neo_papers(taxon)
+out_paper = cytoscape(papers, key='graph_papers')
+if out_paper:
+    streamlit.write(out_paper[0])
+
+streamlit.stop()
 with streamlit.beta_expander('Images'):
     streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
     cs = streamlit.beta_columns(6)
