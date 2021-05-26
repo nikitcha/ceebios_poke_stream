@@ -163,16 +163,16 @@ def get_cyto_backbone(backbone):
     return nodes+edges
 
 def get_children(backbone, this_session, limit):
-    if this_session.selected in this_session.offset:
-        offset = this_session.offset[this_session.selected]
+    if this_session.tree_selected in this_session.tree_offset:
+        offset = this_session.tree_offset[this_session.tree_selected]
     else:
         offset = 0
-    children = species.name_usage(key=this_session.selected, data='children', limit=limit,offset=offset)['results']
+    children = species.name_usage(key=this_session.tree_selected, data='children', limit=limit,offset=offset)['results']
     children = pandas.DataFrame(children)
     if 'canonicalName' in children.columns:
         children = children[['canonicalName','rank','taxonID']].dropna()
     nodes,edges = [],[]
-    base_name = [g['data']['id'] for g in this_session.graph if (g['data'].get('label')==this_session.selected)][0]
+    base_name = [g['data']['id'] for g in this_session.tree_graph if (g['data'].get('label')==this_session.tree_selected)][0]
     for _,row in children.iterrows():
         taxon = int(row['taxonID'].replace('gbif:',''))
         name = row['canonicalName'].lower().capitalize()
@@ -180,20 +180,35 @@ def get_children(backbone, this_session, limit):
         edges += [{'data': { 'source': name, 'target': base_name}}]
     return nodes+edges
 
-def get_neo_papers(taxon, limit=10, offset=0):
+def get_neo_papers(taxon, limit=20, offset=0):
     query = """
     match (t:Taxon {{id:{}}})<-[:MENTIONS]-(p:Paper)
     return t,p
     skip {}
     limit {};
     """.format(taxon, offset, limit)
+
+    paper_q = lambda x: """
+    match (:Paper {{id:'{}'}})-[:MENTIONS]->(t)
+    return t
+    """.format(x)
+
     nodes, edges, ctr = [],[], 0
     results = graph.run(query).data()
+    paper_dict = {}
+    papers = []
     for res in results:
         nodes += [{'data': { 'id': res['t']['name'], 'label': taxon, 'rank':res['t']['rank'].upper()}}]
         nodes += [{'data': { 'id': 'Paper '+str(ctr), 'label': res['p']['id'], 'rank':'PAPER'}}]
         edges += [{'data': { 'source': res['t']['name'], 'target': 'Paper '+str(ctr)}}]
+        paper_dict.update({res['p']['id']:'Paper '+str(ctr)})
         ctr += 1
-    nodes += [{'data': { 'id': 'Photosynthesis', 'label': 'Photosynthesis', 'rank':'FUNCTION'}}]
-    edges += [{'data': { 'source': 'Photosynthesis', 'target': 'Paper '+str(0)}}]
-    return nodes+edges
+        papers.append(res['p'])
+        mentions = graph.run(paper_q(res['p']['id'])).data()
+        for men in mentions:
+            if 'rank' in men['t']:
+                nodes += [{'data': { 'id': men['t']['name'], 'label': men['t']['id'], 'rank':men['t']['rank'].upper()}}]  
+            else:
+                nodes += [{'data': { 'id': men['t']['name'], 'label': men['t']['name'], 'rank':'FUNCTION'}}]  
+            edges += [{'data': { 'source': men['t']['name'], 'target': paper_dict[res['p']['id']]}}]
+    return nodes+edges, papers

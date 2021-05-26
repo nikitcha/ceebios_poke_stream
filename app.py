@@ -1,3 +1,4 @@
+import numpy as np
 import streamlit
 import loaders
 import urllib
@@ -10,7 +11,7 @@ import streamlit.report_thread as ReportThread
 import re 
 streamlit.set_page_config(page_title="Ceebios Explorer", page_icon='icon.png',layout="wide")
 
-this_session = session.get(tree_graph=[], tree_selected=0, tree_offset={}, last_search='')
+this_session = session.get(tree_graph=[], tree_selected=0, tree_offset={}, paper_offset=0, last_search='')
 
 # Define location of the packaged frontend build
 parent_dir = os.path.dirname(os.path.abspath(__file__))
@@ -91,57 +92,45 @@ name = backbone['canonicalName']
 
 if this_session.last_search != name:   
     db.add_userdata(conn, username, name)
-    this_session.graph = loaders.get_cyto_backbone(backbone)
-    this_session.offset = {}
-    this_session.selected = 0
+    this_session.tree_graph = loaders.get_cyto_backbone(backbone)
+    this_session.tree_offset = {}
+    this_session.tree_selected = 0
     this_session.last_search = name
+    this_session.paper_offset = 0
+
 
 
 with streamlit.form(key='graph'):
     c1, c2,c3 = streamlit.beta_columns((1,1,2))
     children = []
     with c3:
-        nchild = streamlit.slider(label='Number of Children',min_value=0,max_value=50,value=5)
+        nchild = streamlit.slider(label='Number of Children',min_value=0,max_value=50,value=10)
     with c1:
         if streamlit.form_submit_button('Get Children'):
-            if this_session.selected:
+            if this_session.tree_selected:
                 children = loaders.get_children(backbone, this_session, limit=nchild)
-                this_session.graph = this_session.graph+children
-                if this_session.selected in this_session.offset:
-                    this_session.offset[this_session.selected] += nchild
+                this_session.tree_graph = this_session.tree_graph+children
+                if this_session.tree_selected in this_session.tree_offset:
+                    this_session.tree_offset[this_session.tree_selected] += nchild
                 else:
-                    this_session.offset.update({this_session.selected:nchild})
+                    this_session.tree_offset.update({this_session.tree_selected:nchild})
             else:
                 streamlit.warning('No Node Selected')
     with c2:
         if streamlit.form_submit_button('Reset'):
-            this_session.graph = loaders.get_cyto_backbone(backbone)
-            this_session.selected = 0 
-            this_session.offset = {}
+            this_session.tree_graph = loaders.get_cyto_backbone(backbone)
+            this_session.tree_selected = 0 
+            this_session.tree_offset = {}
 
-out = cytoscape(this_session.graph)
+out = cytoscape(this_session.tree_graph)
 if out:
     selected, graph = out
-    this_session.graph = graph
-    this_session.selected = selected    
+    this_session.tree_graph = graph
+    this_session.tree_selected = selected    
     taxon = selected
-    name = [g['data']['id'] for g in this_session.graph if (g['data'].get('label')==taxon)][0]
+    name = [g['data']['id'] for g in this_session.tree_graph if (g['data'].get('label')==taxon)][0]
     streamlit.write('Selected: Taxon={}, Name={}'.format(taxon, name))
 
-with streamlit.form(key='graph paper'):
-    c1, c2 = streamlit.beta_columns((1,1))
-    with c1:
-        if streamlit.form_submit_button('Get Mentions'):
-            papers = loaders.get_neo_papers(taxon)
-    with c2:
-        if streamlit.form_submit_button('Reset'):
-            papers = loaders.get_neo_papers(taxon)
-papers = loaders.get_neo_papers(taxon)
-out_paper = cytoscape(papers, key='graph_papers')
-if out_paper:
-    streamlit.write(out_paper[0])
-
-streamlit.stop()
 with streamlit.beta_expander('Images'):
     streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
     cs = streamlit.beta_columns(6)
@@ -188,32 +177,56 @@ with streamlit.beta_expander(label='Wikipedia'):
 
 
 with streamlit.beta_expander(label='Articles', expanded=False):
-    streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
+    streamlit.markdown('<p class="small-font">Source: Semantic Scholar, Wikidata, GBIF</p>', unsafe_allow_html=True)
+    if False:
+        docs = loaders.get_documents(name)
+        if loaders.draw_doc_graph(docs):
+            HtmlFile = open("graph.html", 'r', encoding='utf-8')
+            source_code = HtmlFile.read() 
+            streamlit.components.v1.html(source_code, height = 800)       
+        cs = streamlit.beta_columns((1,2,4,1,1,1))
+        labels = ['id','Title','Abstract','Field','Year', 'URL']
+        for c,l in zip(cs,labels):
+            with c:
+                streamlit.write(l)
+        for i, row in docs.iterrows():
+            c1,c2,c3,c4,c5,c6 = streamlit.beta_columns((1,2,4,1,1,1))                    
+            with c1:
+                streamlit.write(i)
+            with c2:
+                streamlit.write(row['title'])
+            with c3:
+                streamlit.write(row['abstract'])
+            with c4:
+                streamlit.write(','.join(row['scientific_fields']))
+            with c5:
+                streamlit.write(row['publication_year'])
+            with c6:
+                streamlit.write('[Link]({})'.format(row['url']))
+    else:
+        with streamlit.form(key='graph paper'):
+            c1, c2, c3 = streamlit.beta_columns((1,1,2))
+            with c3:
+                npapers = streamlit.slider(label='Number of Papers',min_value=0,max_value=50,value=10)
+            with c2:
+                if streamlit.form_submit_button('Reset'):
+                    this_session.paper_offset = 0
+            with c1:
+                if streamlit.form_submit_button('Next'):
+                    this_session.paper_offset = this_session.paper_offset + npapers
 
-    docs = loaders.get_documents(name)
-    if loaders.draw_doc_graph(docs):
-        HtmlFile = open("graph.html", 'r', encoding='utf-8')
-        source_code = HtmlFile.read() 
-        streamlit.components.v1.html(source_code, height = 800)       
-    cs = streamlit.beta_columns((1,2,4,1,1,1))
-    labels = ['id','Title','Abstract','Field','Year', 'URL']
-    for c,l in zip(cs,labels):
-        with c:
-            streamlit.write(l)
-    for i, row in docs.iterrows():
-        c1,c2,c3,c4,c5,c6 = streamlit.beta_columns((1,2,4,1,1,1))                    
-        with c1:
-            streamlit.write(i)
-        with c2:
-            streamlit.write(row['title'])
-        with c3:
-            streamlit.write(row['abstract'])
-        with c4:
-            streamlit.write(','.join(row['scientific_fields']))
-        with c5:
-            streamlit.write(row['publication_year'])
-        with c6:
-            streamlit.write('[Link]({})'.format(row['url']))
+        paper_graph, papers = loaders.get_neo_papers(taxon, limit=npapers, offset=this_session.paper_offset)
+        out_paper = cytoscape(paper_graph)
+        if out_paper:
+            selected = out_paper[0]
+            paper = [p for p in papers if p['id']==selected]
+            if paper:
+                streamlit.write(paper[0])
+            else:
+                streamlit.write(papers)
+        else:
+            streamlit.write(papers)
+
 
 
 with streamlit.beta_expander(label='Smart Links'):
