@@ -60,7 +60,7 @@ streamlit.markdown("""
 with streamlit.sidebar:
     streamlit.write('Search for Species')
     streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
-    name = autosuggest(key="suggest")
+    suggest = autosuggest(key="suggest")
 
 with streamlit.sidebar.beta_expander('See my search history'):
     username = streamlit.text_input(label='User Name', value='anonymous')
@@ -80,10 +80,10 @@ with streamlit.beta_expander('Common Name Search'):
     if query:
         streamlit.write(loaders.get_canonical_name(query))
 
-backbone = loaders.get_backbone(name)
-if not backbone or 'usageKey' not in backbone:
+if not suggest:
     streamlit.stop()
 
+backbone = loaders.get_backbone(suggest)
 taxon = backbone['usageKey']
 name = backbone['canonicalName']
 
@@ -92,7 +92,7 @@ if this_session.last_search != name:
     this_session.graph = loaders.get_cyto_backbone(backbone)
     this_session.offset = {}
     this_session.selected = 0
-    this_session.last_search = name
+    this_session.last_search = suggest
 
 
 with streamlit.form(key='graph'):
@@ -135,14 +135,7 @@ with streamlit.beta_expander('Images'):
 
 with streamlit.beta_expander(label='Wikipedia'):
     streamlit.markdown('<p class="small-font">Source: Wikidata & Wikipedia</p>', unsafe_allow_html=True)
-    if False:
-        page, image_url = loaders.get_wiki(name)
-        if image_url:
-            streamlit.image(image_url)
-        if page:
-            streamlit.write(page.summary)
-
-    if True:
+    try:
         res = loaders.get_wiki_info(taxon)
         if res:
             if res['label']:
@@ -169,7 +162,12 @@ with streamlit.beta_expander(label='Wikipedia'):
             with c2:
                 if res['wikidata']:
                     open_page(url=res['wikidata'], label='Wikidata')
-
+    except:
+        page, image_url = loaders.get_wiki(name)
+        if image_url:
+            streamlit.image(image_url)
+        if page:
+            streamlit.write(page.summary)
 
 with streamlit.beta_expander(label='Articles', expanded=False):
     streamlit.markdown('<p class="small-font">Source: Semantic Scholar Corpus </p>', unsafe_allow_html=True)
