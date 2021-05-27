@@ -57,6 +57,7 @@ def safe_get(dic,fs):
     else:
         return None
 
+@streamlit.cache(allow_output_mutation=True)
 def get_wiki_info(taxon):
     query = """SELECT ?item ?itemLabel ?itemDescription ?article ?image ?range
     WHERE 
@@ -101,12 +102,9 @@ def get_wiki(name):
         return None,None
 
 @streamlit.cache
-def get_backbone(search=''):
-    if search and len(search)>2:
-        backbone = species.name_backbone(name=search, kingdom='animals')
-        return backbone
-    else:
-        return ''
+def get_backbone(suggest):
+    backbone = species.name_backbone(name=suggest['name'], rank=suggest['rank'])
+    return backbone
 
 @streamlit.cache
 def get_images(search, limit=4, istaxon=True):
@@ -131,6 +129,7 @@ def get_coords(taxon, limit=100, istaxon=True):
     else:
         return pandas.DataFrame()    
 
+@streamlit.cache
 def draw_doc_graph(docs):
     if len(docs)>0:
         species = docs[['dict_species']]
@@ -150,6 +149,7 @@ def draw_doc_graph(docs):
     else:
         return False
 
+@streamlit.cache
 def get_cyto_backbone(backbone):
     nodes,edges = [],[]
     last_node = ''
@@ -162,6 +162,7 @@ def get_cyto_backbone(backbone):
             last_node = name
     return nodes+edges
 
+@streamlit.cache
 def get_children(backbone, this_session, limit):
     if this_session.tree_selected in this_session.tree_offset:
         offset = this_session.tree_offset[this_session.tree_selected]
@@ -180,35 +181,50 @@ def get_children(backbone, this_session, limit):
         edges += [{'data': { 'source': name, 'target': base_name}}]
     return nodes+edges
 
-def get_neo_papers(taxon, limit=20, offset=0):
+@streamlit.cache
+def get_neo_papers(taxon, taxon_name, limit=20, offset=0):
+    sq = """
+    match (p:Taxon {{id:{}}})-[:IS_SYNONYM*]-(q:Taxon) return p,q;
+    """.format(taxon)
+    synonyms = graph.run(sq).data()
+    alltax = [taxon]
+    for syn in synonyms:
+        for f in ['q','p']:
+            tax = syn[f]['id']
+            if tax not in alltax:
+                alltax.append(tax)
+
     query = """
-    match (t:Taxon {{id:{}}})<-[:MENTIONS]-(p:Paper)
+    match (t:Taxon)<-[:MENTIONS]-(p:Paper)
+    where t.id in [{}]
     return t,p
     skip {}
     limit {};
-    """.format(taxon, offset, limit)
+    """.format(','.join([str(s) for s in alltax]), offset, limit)
 
     paper_q = lambda x: """
     match (:Paper {{id:'{}'}})-[:MENTIONS]->(t)
     return t
     """.format(x)
-
     nodes, edges, ctr = [],[], 0
     results = graph.run(query).data()
     paper_dict = {}
     papers = []
     for res in results:
-        nodes += [{'data': { 'id': res['t']['name'], 'label': taxon, 'rank':res['t']['rank'].upper()}}]
+        nodes += [{'data': { 'id': taxon_name, 'label': taxon, 'rank':res['t']['rank'].upper()}}]
         nodes += [{'data': { 'id': 'Paper '+str(ctr), 'label': res['p']['id'], 'rank':'PAPER'}}]
-        edges += [{'data': { 'source': res['t']['name'], 'target': 'Paper '+str(ctr)}}]
+        edges += [{'data': { 'source': taxon_name, 'target': 'Paper '+str(ctr)}}]
         paper_dict.update({res['p']['id']:'Paper '+str(ctr)})
         ctr += 1
         papers.append(res['p'])
         mentions = graph.run(paper_q(res['p']['id'])).data()
         for men in mentions:
             if 'rank' in men['t']:
-                nodes += [{'data': { 'id': men['t']['name'], 'label': men['t']['id'], 'rank':men['t']['rank'].upper()}}]  
+                tax = taxon if men['t']['id'] in alltax else men['t']['id']
+                name = taxon_name if men['t']['id'] in alltax else men['t']['name']
+                nodes += [{'data': { 'id': name, 'label':tax, 'rank':men['t']['rank'].upper()}}]  
             else:
-                nodes += [{'data': { 'id': men['t']['name'], 'label': men['t']['name'], 'rank':'FUNCTION'}}]  
-            edges += [{'data': { 'source': men['t']['name'], 'target': paper_dict[res['p']['id']]}}]
+                name = men['t']['name']
+                nodes += [{'data': { 'id': name, 'label': name, 'rank':'FUNCTION'}}]  
+            edges += [{'data': { 'source': name, 'target': paper_dict[res['p']['id']]}}]
     return nodes+edges, papers

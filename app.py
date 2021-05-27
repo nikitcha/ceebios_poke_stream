@@ -63,7 +63,7 @@ streamlit.markdown("""
 with streamlit.sidebar:
     streamlit.write('Search for Species')
     streamlit.markdown('<p class="small-font">Source: GBIF</p>', unsafe_allow_html=True)
-    name = autosuggest(key="suggest")
+    suggest = autosuggest(key="suggest")
 
 with streamlit.sidebar.beta_expander('See my search history'):
     username = streamlit.text_input(label='User Name', value='anonymous')
@@ -83,19 +83,20 @@ with streamlit.beta_expander('Common Name Search'):
     if query:
         streamlit.write(loaders.get_canonical_name(query))
 
-backbone = loaders.get_backbone(name)
-if not backbone or 'usageKey' not in backbone:
+if suggest:
+    backbone = loaders.get_backbone(suggest)
+else:
     streamlit.stop()
 
 taxon = backbone['usageKey']
 name = backbone['canonicalName']
 
-if this_session.last_search != name:   
-    db.add_userdata(conn, username, name)
+if this_session.last_search != suggest:   
+    db.add_userdata(conn, username, suggest)
     this_session.tree_graph = loaders.get_cyto_backbone(backbone)
     this_session.tree_offset = {}
     this_session.tree_selected = 0
-    this_session.last_search = name
+    this_session.last_search = suggest
     this_session.paper_offset = 0
 
 
@@ -140,14 +141,7 @@ with streamlit.beta_expander('Images'):
 
 with streamlit.beta_expander(label='Wikipedia'):
     streamlit.markdown('<p class="small-font">Source: Wikidata & Wikipedia</p>', unsafe_allow_html=True)
-    if False:
-        page, image_url = loaders.get_wiki(name)
-        if image_url:
-            streamlit.image(image_url)
-        if page:
-            streamlit.write(page.summary)
-
-    if True:
+    try:
         res = loaders.get_wiki_info(taxon)
         if res:
             if res['label']:
@@ -174,6 +168,12 @@ with streamlit.beta_expander(label='Wikipedia'):
             with c2:
                 if res['wikidata']:
                     open_page(url=res['wikidata'], label='Wikidata')
+    except:
+        page, image_url = loaders.get_wiki(name)
+        if image_url:
+            streamlit.image(image_url)
+        if page:
+            streamlit.write(page.summary)
 
 
 with streamlit.beta_expander(label='Articles', expanded=False):
@@ -215,7 +215,7 @@ with streamlit.beta_expander(label='Articles', expanded=False):
                 if streamlit.form_submit_button('Next'):
                     this_session.paper_offset = this_session.paper_offset + npapers
 
-        paper_graph, papers = loaders.get_neo_papers(taxon, limit=npapers, offset=this_session.paper_offset)
+        paper_graph, papers = loaders.get_neo_papers(taxon, name, limit=npapers, offset=this_session.paper_offset)
         out_paper = cytoscape(paper_graph)
         if out_paper:
             selected = out_paper[0]
