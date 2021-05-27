@@ -97,12 +97,9 @@ def get_wiki(name):
         return None,None
 
 @streamlit.cache
-def get_backbone(search=''):
-    if search and len(search)>2:
-        backbone = species.name_backbone(name=search, kingdom='animals')
-        return backbone
-    else:
-        return ''
+def get_backbone(suggest):
+    backbone = species.name_backbone(name=suggest['name'], rank=suggest['rank'])
+    return backbone
 
 @streamlit.cache
 def get_images(search, limit=4, istaxon=True):
